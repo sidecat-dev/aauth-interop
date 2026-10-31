@@ -2535,7 +2535,7 @@ pub(crate) fn run_supervision_qa(
     // QA-S8: Consumer Documentation Audit (aauth-rust 10cacbf7 & aauth-go 2fb24239)
     // =========================================================================
     let go_dir = Path::new(go_module_path);
-    let rust_dir = go_dir.parent().unwrap_or(go_dir).join("aauth-rust");
+    let rust_dir = crate::rust_source();
     let rust_conf_md = fs::read_to_string(rust_dir.join("CONFORMANCE.md"))?;
     let rust_guide_md = fs::read_to_string(rust_dir.join("USE-IN-YOUR-SERVICE.md"))?;
     let go_conf_md = fs::read_to_string(go_dir.join("CONFORMANCE.md"))?;
