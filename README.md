@@ -25,8 +25,9 @@ and asks whether they work together.
   target pins in its `rust-toolchain.toml` (Rust 1.99.1 at
   `v0.1.0-alpha.17`); rustup downloads it on first use.
 - Go 1.25 or later.
-- Network access to gitlab.com, crates.io and the Go module proxy, and about
-  3 GB of disk for the two checkouts and the build.
+- Network access to gitlab.com, crates.io and the Go module proxy. The two
+  checkouts, the release build and the Go build cache took about 600 MB in the
+  last run, on top of the Rust toolchain and the crate and Go module caches.
 
 ## Run it
 
@@ -40,7 +41,7 @@ cd aauth-interop
 detached, builds the runner against `targets/aauth-rust`, builds the Go fleet
 against `targets/aauth-go`, and runs every case. A ref can be a tag, a branch
 or a commit. The first build downloads crates and takes a while; the cases
-then run in about a minute.
+then run in under two minutes.
 
 The run prints one line per case, then a summary and the results path:
 
@@ -52,6 +53,14 @@ results: runs/20261031T220000Z-rust-10cacbf7-go-0e2447bc/results.json
 ```
 
 `run.sh` exits 0 when every case met its expectation and 1 otherwise.
+
+Last run: 2026-10-31 on Linux x86_64 (Rust 1.99.1, Go 1.27.1), aauth-rust
+`v0.1.0-alpha.17` (`10cacbf`) and aauth-go `0e2447b`, runner `f5d61fd`: 127 of
+127 cases met their expectation (106 verified working, 15 defect resolved, 6
+boundary pinned). Its `results.json` and transcript are in
+[reports/run-02-alpha17-0e2447b/](reports/run-02-alpha17-0e2447b/); the run
+before it, at runner `2afce11`, is in
+[reports/run-01-alpha17-0e2447b/](reports/run-01-alpha17-0e2447b/).
 
 To test unmerged work, point at another repository or branch; a local clone's
 path works as a URL:
@@ -145,6 +154,7 @@ template is [newcomer/RECORD-TEMPLATE.md](newcomer/RECORD-TEMPLATE.md).
 | `runner/fleet/` | the Go fleet; the runner embeds these files and writes them into the generated module |
 | `CASES.md` | every case by group, with its source files |
 | `NEWCOMER.md`, `newcomer/` | the newcomer test |
+| `reports/` | results of recorded runs, one folder per run |
 | `targets/`, `runs/` | created by `run.sh`; not committed |
 
 ## Add a case
