@@ -58,9 +58,7 @@ Last run: 2026-10-31 on Linux x86_64 (Rust 1.99.1, Go 1.27.1), aauth-rust
 `v0.1.0-alpha.17` (`10cacbf`) and aauth-go `0e2447b`, runner `f5d61fd`: 127 of
 127 cases met their expectation (106 verified working, 15 defect resolved, 6
 boundary pinned). Its `results.json` and transcript are in
-[reports/run-02-alpha17-0e2447b/](reports/run-02-alpha17-0e2447b/); the run
-before it, at runner `2afce11`, is in
-[reports/run-01-alpha17-0e2447b/](reports/run-01-alpha17-0e2447b/).
+[reports/run-02-alpha17-0e2447b/](reports/run-02-alpha17-0e2447b/).
 
 To test unmerged work, point at another repository or branch; a local clone's
 path works as a URL:
