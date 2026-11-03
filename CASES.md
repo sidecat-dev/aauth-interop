@@ -15,7 +15,7 @@ Totals: 106 verified working, 15 defect resolved, 6 boundary pinned.
 
 Long titles are cut here; several in groups L to Q carry values from the run that produced them. The full titles are in `results.json`.
 
-Sources are in `runner/src/` (Rust side) and `runner/fleet/` (Go side). Category names changed when the runner became this project; the old names, as earlier reports show them, are listed under each group.
+Sources are in `runner/src/` (Rust side) and `runner/fleet/` (Go side).
 
 ## A. Go Federated Resource + Access Server + Federated PS + Rust Agent
 
@@ -53,7 +53,6 @@ Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
 ## D. Re-Verification of Earlier Federated R3 Defects
 
 Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `D. Re-Verification of Pass-1 Defects (f12b2168 / a97755ae)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -74,7 +73,6 @@ Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
 ## F. Live Held-Grant Poll & Retry Verification
 
 Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `F. Live Held-Grant Poll Verification (635b8d80 / a97755ae)`; `F. Live Held-Grant Poll & Retry Verification (635b8d80 / 24b48dd3)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -85,7 +83,6 @@ Earlier reports: `F. Live Held-Grant Poll Verification (635b8d80 / a97755ae)`; `
 ## G. Application 202 Header Retention
 
 Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `G. Application 202 Header-Retention Increment (81c1d29 / db8af21)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -99,7 +96,6 @@ Earlier reports: `G. Application 202 Header-Retention Increment (81c1d29 / db8af
 ## H. Approved Mission Composition with Direct Class R3
 
 Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `H. Approved Mission Composition with Direct Class R3 (0.1.0-alpha.10 / 3a691c40)`; `H. Approved Mission Composition with Direct Class R3 (0.1.0-alpha.10 / 72e722e1)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -113,7 +109,6 @@ Earlier reports: `H. Approved Mission Composition with Direct Class R3 (0.1.0-al
 ## I. Required MUST-Level Behavior: Scopes, Identifiers, Release, Signatures, Audit & Upstream Tokens
 
 Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `I. 0.1.0-alpha.11 Required-Row Batch (18 MUST-Level Rows / a0f1e268)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -128,7 +123,6 @@ Earlier reports: `I. 0.1.0-alpha.11 Required-Row Batch (18 MUST-Level Rows / a0f
 ## J. AAuth Events (Rust & Go)
 
 Sources: `runner/src/events_qa.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `J. AAuth Events (0.1.0-alpha.12 Rust & Go External-Consumer QA)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -143,7 +137,6 @@ Earlier reports: `J. AAuth Events (0.1.0-alpha.12 Rust & Go External-Consumer QA
 ## K. aauth-go Conformance Fixes
 
 Sources: `runner/src/events_qa.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `K. aauth-go Conformance Fixes (claude/go-fails a0a84b16)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -159,7 +152,6 @@ Earlier reports: `K. aauth-go Conformance Fixes (claude/go-fails a0a84b16)`.
 ## L. aauth-rust Conformance Fixes & Upgrade Audit
 
 Sources: `runner/src/alpha13_qa.rs`, `runner/fleet/go_qa_fleet.go`.
-Earlier reports: `L. aauth-rust 0.1.0-alpha.13 Conformance & Upgrade Audit (c142d986)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -175,7 +167,6 @@ Earlier reports: `L. aauth-rust 0.1.0-alpha.13 Conformance & Upgrade Audit (c142
 ## M. Signature-Key Schemes & Cross-Language Interop
 
 Sources: `runner/src/go_sigkey_qa.rs`, `runner/fleet/go_sigkey_suite.go`.
-Earlier reports: `M. aauth-go Signature-Key Additions & Cross-Language Interop (ae5c025a / claude/go-sigkey)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -191,7 +182,6 @@ Earlier reports: `M. aauth-go Signature-Key Additions & Cross-Language Interop (
 ## N. Rust Metadata, Capabilities, Missions, Budgets & Interaction, with Cross-Language Interop
 
 Sources: `runner/src/alpha14_qa.rs`, `runner/fleet/go_alpha14_suite.go`.
-Earlier reports: `N. aauth-rust 0.1.0-alpha.14 New Features & Cross-Language Interop (68dbfc10 + aauth-go 671a88f2)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -209,7 +199,6 @@ Earlier reports: `N. aauth-rust 0.1.0-alpha.14 New Features & Cross-Language Int
 ## O. Rust Signing Keys, Call Chaining & X.509, with Cross-Language Interop
 
 Sources: `runner/src/alpha15_qa.rs`, `runner/fleet/go_alpha15_suite.go`.
-Earlier reports: `O. aauth-rust 0.1.0-alpha.15 New Features & Cross-Language Interop (1f59a069 + aauth-go 671a88f2)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -224,7 +213,6 @@ Earlier reports: `O. aauth-rust 0.1.0-alpha.15 New Features & Cross-Language Int
 ## P. Go Interaction, Links, Delayed Requests, Revocation, R3, Budgets & Events, with Cross-Language Interop
 
 Sources: `runner/src/go_features_qa.rs`, `runner/fleet/go_features_suite.go`.
-Earlier reports: `P. aauth-go claude/go-features Batch (d0369c7a) & Cross-Language Interop with aauth-rust 0.1.0-alpha.15 (1f59a069)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -243,7 +231,6 @@ Earlier reports: `P. aauth-go claude/go-features Batch (d0369c7a) & Cross-Langua
 ## Q. Four-Party Missions & Metered R3 Release, with Cross-Language Interop
 
 Sources: `runner/src/alpha16_qa.rs`, `runner/fleet/go_alpha16_suite.go`.
-Earlier reports: `Q. aauth-rust 0.1.0-alpha.16 Four-Party Missions, Metered R3 Release & Cross-Language Interop (9961b6cc + aauth-go 445af350)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -257,7 +244,6 @@ Earlier reports: `Q. aauth-rust 0.1.0-alpha.16 Four-Party Missions, Metered R3 R
 ## R. Go Call Chaining, Polling & Hosted-Page Callbacks
 
 Sources: `runner/src/go_chaining_qa.rs`, `runner/fleet/go_chaining_suite.go`.
-Earlier reports: `R. Go Chaining & Polling Batch (aauth-go 8a3734dd + aauth-rust v0.1.0-alpha.16)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -272,7 +258,6 @@ Earlier reports: `R. Go Chaining & Polling Batch (aauth-go 8a3734dd + aauth-rust
 ## S. Supervision (Rust, Go & Cross-Language)
 
 Sources: `runner/src/supervision_qa.rs`, `runner/fleet/go_supervision_suite.go`.
-Earlier reports: `S. Alpha.17 Rust & Go Supervision Batch (aauth-rust 10cacbf7 + aauth-go 2fb24239)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
@@ -288,7 +273,6 @@ Earlier reports: `S. Alpha.17 Rust & Go Supervision Batch (aauth-rust 10cacbf7 +
 ## T. Access Server Interaction Relay, Chained Budgets & Metered Release
 
 Sources: `runner/src/go_budget_relay_qa.rs`, `runner/fleet/go_budget_relay_suite.go`.
-Earlier reports: `T. Go Budget-Relay Batch (aauth-go 9b14543d + aauth-rust v0.1.0-alpha.17)`.
 
 | Id | Classification | Title |
 | --- | --- | --- |

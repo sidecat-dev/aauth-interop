@@ -84,8 +84,8 @@ runner/target/release/aauth-interop-runner --go-source targets/aauth-go --out-di
 
 Each run directory holds:
 
-- `results.json`: the full record. `qa-report.json` is the same file under the
-  name earlier reports used.
+- `results.json`: the full record. `qa-report.json` is a copy under an older
+  name.
 - `qa-transcript.log`: the printed lines.
 - `go-fleet-workdir/`: the generated Go module that was built and run.
 - the stores the cases opened, for inspection.
@@ -112,16 +112,6 @@ found, now fixed), `BOUNDARY_PINNED` (a known limit, kept on purpose) or
 `DEFECT_CONFIRMED`. `passed_expectation` says whether it did. A case with
 `passed_expectation: false` is a failure whatever its classification; its
 transcript line reads `FAIL`. [CASES.md](CASES.md) lists every case.
-
-Case ids and the shape of `results.json` are the same as in the reports this
-runner produced before it became a project, so those reports still read the
-same way. Category names lost their batch revisions; CASES.md lists the old
-names. `targets`, `failed_count` and `failed_ids` are new fields.
-
-Those earlier reports (attempts 1 to 29) predate two fixes: their transcript
-lines said `PASS` whatever the outcome, and the runner exited 0 even when a
-case missed its expectation. For those reports, read `passed_expectation` in
-`results.json`, not the transcript or the exit status.
 
 ## What the results do not cover
 
