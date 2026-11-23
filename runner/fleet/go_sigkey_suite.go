@@ -304,7 +304,7 @@ func runMSuite(
 	// 2. /hwk-ed25519-only explicitly accepts only Ed25519
 	mGoMux.HandleFunc("POST /hwk-ed25519-only", func(w http.ResponseWriter, r *http.Request) {
 		prep, pErr := signaturekey.PrepareRequest(r, clock, signaturekey.VerifyOptions{
-			AcceptedSchemes:    []signaturekey.Scheme{signaturekey.SchemeHWK},
+			AcceptedSchemes: []signaturekey.Scheme{signaturekey.SchemeHWK},
 			AcceptedAlgorithms: []string{jose.Ed25519Algorithm},
 		})
 		if pErr != nil {
@@ -491,13 +491,13 @@ func runMSuite(
 			compact, retained := assertion.Compact()
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"ok":          true,
-				"scheme_used": string(proof.Scheme()),
-				"orig_scheme": string(assertion.Scheme()),
-				"jti":         assertion.JTI(),
-				"issuer":      assertion.Issuer(),
-				"retained":    retained,
-				"compact_len": len(compact),
+				"ok":           true,
+				"scheme_used":  string(proof.Scheme()),
+				"orig_scheme":  string(assertion.Scheme()),
+				"jti":          assertion.JTI(),
+				"issuer":       assertion.Issuer(),
+				"retained":     retained,
+				"compact_len":  len(compact),
 			})
 			return
 		}
@@ -605,14 +605,14 @@ func runMSuite(
 
 	// Register m-go-sigkey.example with m-rust-sigkey.example so Rust can fetch Go JWKS & X509 chains over TLS
 	peerBody, _ := json.Marshal(map[string]any{
-		"addr":              mGoSrv.Listener.Addr().String(),
-		"cert_hex":          hex.EncodeToString(mGoDER),
-		"x509_root_der_b64": base64.StdEncoding.EncodeToString(goX509Root.cert.Raw),
-		"x509_mid_crl_b64":  base64.StdEncoding.EncodeToString(goX509MidCRL.Raw),
-		"x509_root_crl_b64": base64.StdEncoding.EncodeToString(goX509RootCRL.Raw),
-		"x509_rev_crl_b64":  base64.StdEncoding.EncodeToString(goX509RevokedCRL.Raw),
-		"jwt_issuer_jwk":    goJWTIssuerKey.PublicJWK(),
-		"jwt_holder_jwk":    goJWTHolderKey.PublicJWK(),
+		"addr":               mGoSrv.Listener.Addr().String(),
+		"cert_hex":           hex.EncodeToString(mGoDER),
+		"x509_root_der_b64":  base64.StdEncoding.EncodeToString(goX509Root.cert.Raw),
+		"x509_mid_crl_b64":   base64.StdEncoding.EncodeToString(goX509MidCRL.Raw),
+		"x509_root_crl_b64":  base64.StdEncoding.EncodeToString(goX509RootCRL.Raw),
+		"x509_rev_crl_b64":   base64.StdEncoding.EncodeToString(goX509RevokedCRL.Raw),
+		"jwt_issuer_jwk":     goJWTIssuerKey.PublicJWK(),
+		"jwt_holder_jwk":     goJWTHolderKey.PublicJWK(),
 	})
 	peerResp, err := httpClient.Post("https://m-rust-sigkey.example/__set-go-peer", "application/json", bytes.NewReader(peerBody))
 	must(err, "post m-rust-sigkey.example/__set-go-peer")
@@ -1314,11 +1314,11 @@ func runMSuite(
 			"neg_guards_ok":         m3NegGuardsOK,
 		},
 		"m4": map[string]any{
-			"go_accepted_rsa_ca_chain":   m4GoAccepted,
-			"rust_accepted_rsa_ca_chain": m4RustAccepted,
-			"rust_status":                m4RustResp.StatusCode,
-			"rust_alg":                   m4RustOut.Alg,
-			"rust_signature_error":       m4RustSigErr,
+			"go_accepted_rsa_ca_chain":     m4GoAccepted,
+			"rust_accepted_rsa_ca_chain":   m4RustAccepted,
+			"rust_status":                  m4RustResp.StatusCode,
+			"rust_alg":                     m4RustOut.Alg,
+			"rust_signature_error":         m4RustSigErr,
 		},
 		"m5": map[string]any{
 			"all_ok":                m5AllOK,

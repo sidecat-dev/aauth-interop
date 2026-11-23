@@ -1828,94 +1828,57 @@ pub fn run_go_features_qa_cases(
         "details": p10_go,
     }));
     // =========================================================================
-    // QA-P11: Consumer Documentation Sufficiency Audit (aauth-go d0369c7a:
-    // CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md)
-    // =========================================================================
+    // QA-P11: Go Resource and federation guidance
     let go_root = Path::new(go_module_path);
-    let go_conf_md = fs::read_to_string(go_root.join("CONFORMANCE.md"))?;
-    let go_use_md = fs::read_to_string(go_root.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_interp_md = fs::read_to_string(go_root.join("INTERPRETATIONS.md"))?;
-
-    let p11_conf_has_all_10 = [
-        "Features added on 2026-10-30:",
-        "Resource-initiated interaction, three-party:",
-        "Interaction chaining answers the original caller with its own `202`",
-        "Interaction callbacks with `error` where the library hosts the page:",
-        "The `aauth-resource` link relation is emitted and followed only for a server",
-        "Delayed signed requests verify at their `created` time, with replay detection",
-        "Revocation: person and resource tokens are revoked at every recipient",
-        "R3: several internal definitions compose into one document;",
-        "Budgets: held refusals reserve nothing (four-party), replays answer without",
-        "Events: `EventInboxReader` hands queued deliveries to the Agent with their",
-        "A Resource that also serves clients outside AAuth can accept further",
-    ]
-    .iter()
-    .all(|needle| go_conf_md.contains(needle))
-        && (go_conf_md.contains("The PS-to-AS step (the Person Server passing")
-            || go_conf_md.contains("Changes on 2026-10-31: four-party call chaining."));
-
-    let p11_use_has_all_guides = [
-        "## Revoke person and resource tokens",
-        "## Organize R3 definitions and gate release",
-        "## Hold a Budget refusal",
-        "## Sign and verify Budget usage",
-        "## Chain a call through an Access Server",
-        "## Deliver events to an Agent",
-        "### Resolve a Resource's own interaction before consent",
-        "### Chain a downstream interaction to your caller",
-        "## Point Agents at your metadata",
-        "## Verify a signed request after a delay",
-        "### Accept clients outside AAuth at a Resource",
-    ]
-    .iter()
-    .all(|needle| go_use_md.contains(needle));
-
-    let p11_interp_has_new_sections = [
-        "## An `aauth-resource` link is read leniently and admitted strictly",
-        "## A delayed verifier's bound and replay span come from its own options",
-        "## An Access Server verifies the upstream token of a chained request itself",
-        "## Further Signature-Key schemes are for a Resource's clients outside AAuth",
-        "## A signed usage response covers what Budgets lists",
-        "## Internal R3 definitions compose by merging their displays",
-        "## Release gating runs only held calls and writes the release statement",
-        "## A held Budget refusal stays at one pending URL",
-        "## A revocation hold that ends before a downstream answers is pending",
-        "## Resource-initiated interaction is three-party, missionless and deferred",
-        "## Interaction chaining binds polls to the caller's key",
-    ]
-    .iter()
-    .all(|needle| go_interp_md.contains(needle));
-
-    // Non-blocking documentation observations pinned in QA-P11:
-    // DOC-OBS-P11-1: the d0369c7a branch was cut from ae5c025 before 581dc22, so CONFORMANCE.md:259 retains the stale "cached scheme stays unsupported" sentence
-    let doc_obs_p11_1 = go_conf_md.contains("and the `cached` scheme stays unsupported");
-    // DOC-OBS-P11-2: INTERPRETATIONS.md:2151-2152 retains pre-17d3f41 sentence "The Access Server keeps no revocation records, so it never answers revoked_upstream_token"
-    let doc_obs_p11_2 = go_interp_md.contains("The Access Server keeps no revocation records, so it never answers")
-        && go_interp_md.contains("`revoked_upstream_token`.");
-    // DOC-OBS-P11-3: Lower table rows / Revocation details in CONFORMANCE.md:213 retain pre-2026-10-30 boundary text superseded by the top-level "Features added on 2026-10-30" summary list
-    let doc_obs_p11_3 = go_conf_md.contains("Only AP Agent tokens and PS Auth tokens are supported.");
-
-    let p11_obs_resolved = !doc_obs_p11_1 && !doc_obs_p11_2 && !doc_obs_p11_3;
-    let p11_pass = p11_conf_has_all_10 && p11_use_has_all_guides && p11_interp_has_new_sections && p11_obs_resolved;
+    let missing = crate::audit_documents(go_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Revoke person and resource tokens",
+                "## Organize R3 definitions and gate release",
+                "## Hold a Budget refusal",
+                "## Sign and verify Budget usage",
+                "## Chain a call through an Access Server",
+                "## Deliver events to an Agent",
+                "### Resolve a Resource's own interaction before consent",
+                "### Chain a downstream interaction to your caller",
+                "## Point Agents at your metadata",
+                "## Verify a signed request after a delay",
+                "### Accept clients outside AAuth at a Resource",
+            ],
+        ),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "An `aauth-resource` link is read leniently and admitted strictly",
+                "A delayed verifier's bound and replay span",
+                "An Access Server verifies the upstream token",
+                "Further Signature-Key schemes",
+                "A signed usage response",
+                "Internal R3 definitions",
+                "Release gating runs only held calls",
+                "A held Budget refusal",
+                "A revocation hold",
+                "Resource-initiated interaction is three-party",
+                "Interaction chaining binds polls",
+            ],
+        ),
+    ])?;
     cases.push(json!({
         "id": "QA-P11",
         "classification": "DEFECT_RESOLVED",
-        "pass": p11_pass,
-        "summary": format!(
-            "aauth-go (main 445af350) consumer documentation audit passed: CONFORMANCE.md 'Features added on 2026-10-30' covers all 10 features ({}), USE-IN-YOUR-SERVICE.md provides accurate copy-pasteable guides for all 10 entry points ({}), INTERPRETATIONS.md covers new interpretations ({}), and all 3 prior non-blocking doc observations (DOC-OBS-P11-1..3) are resolved in 445af350 ({})",
-            p11_conf_has_all_10,
-            p11_use_has_all_guides,
-            p11_interp_has_new_sections,
-            p11_obs_resolved,
-        ),
-        "details": {
-            "conformance_has_all_10": p11_conf_has_all_10,
-            "use_in_your_service_has_all_10": p11_use_has_all_guides,
-            "interpretations_has_new_sections": p11_interp_has_new_sections,
-            "doc_obs_p11_1_resolved": !doc_obs_p11_1,
-            "doc_obs_p11_2_resolved": !doc_obs_p11_2,
-            "doc_obs_p11_3_resolved": !doc_obs_p11_3,
-        },
+        "pass": missing.is_empty(),
+        "summary": format!("Go Resource and federation guidance. Missing items: {}", missing.len()),
+        "missing": missing,
     }));
 
     for c in cases {

@@ -1624,22 +1624,36 @@ pub fn run_go_budget_relay_qa(
     transcript_lines.push(format!("[QA-T5] PASS={t5_pass}: {t5_val}"));
 
     let go_dir = Path::new(go_module_path);
-    let go_conf_md = fs::read_to_string(go_dir.join("CONFORMANCE.md"))?;
-    let go_guide_md = fs::read_to_string(go_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_interp_md = fs::read_to_string(go_dir.join("INTERPRETATIONS.md"))?;
-    let go_journeys_md = fs::read_to_string(go_dir.join("JOURNEYS.md"))?;
-
-    let t7_conf_ok = go_conf_md.contains("R3ReleaseConfig.MeterRelease")
-        && go_conf_md.contains("PendingDecision.InteractionURL")
-        && go_conf_md.contains("agent.BudgetCall.UpstreamToken");
-    let t7_guide_ok = go_guide_md.contains("**Meter the release.**")
-        && go_guide_md.contains("**The person at the Access Server.**")
-        && go_guide_md.contains("BudgetCall.UpstreamToken");
-    let t7_interp_ok = go_interp_md.contains("## An Access Server's interaction reaches the Agent that declared it")
-        && go_interp_md.contains("## A per-call token's budget meters the release of a held result");
-    let t7_journeys_ok = go_journeys_md.contains("Metered release of a held R3 result — Implemented four-party.")
-        && go_journeys_md.contains("integration/r3_metered_release_four_party_test.go");
-    let t7_pass = t7_conf_ok && t7_guide_ok && t7_interp_ok && t7_journeys_ok;
+    let t7_missing = crate::audit_documents(go_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "MeterRelease",
+                "The person at the Access Server.",
+                "BudgetCall.UpstreamToken",
+            ],
+        ),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "An Access Server's interaction reaches the Agent that declared it",
+                "A per-call token's budget meters the release of a held result",
+                "A budgeted auth token chains like any other upstream token",
+            ],
+        ),
+        ("JOURNEYS.md", &["integration/r3_metered_release_four_party_test.go"]),
+        ("docs/features/budgets.md", &["## When the budget runs out", "## Limits"]),
+    ])?;
+    let t7_pass = t7_missing.is_empty();
 
     let prior_all_passed = cases.iter().all(|c| c.passed_expectation) && t7_pass;
     let t6_pass = prior_all_passed && cases.len() == 125;
@@ -1663,24 +1677,19 @@ pub fn run_go_budget_relay_qa(
     });
     transcript_lines.push(format!("[QA-T6] PASS={t6_pass}: total_cases=127"));
 
+
+    let passed = t7_pass;
     cases.push(QaCaseReceipt {
         id: "QA-T7".into(),
         category: "T. Access Server Interaction Relay, Chained Budgets & Metered Release".into(),
-        title: "Consumer Documentation Sufficiency Audit: CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md & JOURNEYS.md on aauth-go 9b14543d".into(),
+        title: "Go interaction relay, chained Budgets and metered-release guides".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: t7_pass,
-        summary: format!(
-            "Consumer documentation audit passed on aauth-go 9b14543d: CONFORMANCE.md={}, USE-IN-YOUR-SERVICE.md={}, INTERPRETATIONS.md={}, JOURNEYS.md={}",
-            t7_conf_ok, t7_guide_ok, t7_interp_ok, t7_journeys_ok,
-        ),
-        evidence: json!({
-            "conformance_ok": t7_conf_ok,
-            "use_in_your_service_ok": t7_guide_ok,
-            "interpretations_ok": t7_interp_ok,
-            "journeys_ok": t7_journeys_ok,
-        }),
+        passed_expectation: passed,
+        summary: format!("Go interaction relay, chained Budgets and metered-release guides. Missing items: {}", t7_missing.len()),
+        evidence: json!({ "missing": t7_missing }),
     });
-    transcript_lines.push(format!("[QA-T7] PASS={t7_pass}"));
+    transcript_lines.push(format!("[QA-T7] PASS={passed}: missing={t7_missing:?}"));
+
 
     Ok(())
 }

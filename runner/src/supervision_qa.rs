@@ -1374,7 +1374,7 @@ pub(crate) fn run_supervision_qa(
     *s1_org.narrow_scope.lock().unwrap() = None;
     let narrowed_scope_ok = member(&r_4p_narrow, "auth_token").is_some_and(|token| {
         AuthToken::parse(&token)
-            .and_then(|token| token.verify(&trust, clock))
+            .and_then(|token| token.verify(&trust, now.load(Ordering::SeqCst)))
             .is_ok_and(|token| token.claims().iss == S1_AS
                 && token.claims().scope.as_deref() == Some("calendar.read"))
     });
@@ -2459,7 +2459,7 @@ pub(crate) fn run_supervision_qa(
     )?;
     let narrowed_scope_ok = member(&r6_4p_narrow, "auth_token").is_some_and(|token| {
         AuthToken::parse(&token)
-            .and_then(|token| token.verify(&trust, clock))
+            .and_then(|token| token.verify(&trust, now.load(Ordering::SeqCst)))
             .is_ok_and(|token| token.claims().iss == S1_AS
                 && token.claims().scope.as_deref() == Some("calendar.read"))
     });
@@ -2548,32 +2548,57 @@ pub(crate) fn run_supervision_qa(
     // =========================================================================
     let go_dir = Path::new(go_module_path);
     let rust_dir = crate::rust_source();
-    let rust_conf_md = fs::read_to_string(rust_dir.join("CONFORMANCE.md"))?;
-    let rust_guide_md = fs::read_to_string(rust_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_conf_md = fs::read_to_string(go_dir.join("CONFORMANCE.md"))?;
-    let go_guide_md = fs::read_to_string(go_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_interp_md = fs::read_to_string(go_dir.join("INTERPRETATIONS.md"))?;
-    let go_journeys_md = fs::read_to_string(go_dir.join("JOURNEYS.md"))?;
-
-    let rust_conf_ok = rust_conf_md.contains("aauth-rust-supervision-server")
-        && rust_conf_md.contains("PersonServer::with_supervision")
-        && rust_conf_md.contains(";req");
-    let rust_guide_ok = rust_guide_md.contains("## Supervise agents with a supervision server")
-        && rust_guide_md.contains("ps.resolve_supervision")
-        && rust_guide_md.contains("ps.advance_supervision")
-        && rust_guide_md.contains("ps.deliver_supervision()")
-        && rust_guide_md.contains("ps.supervision_record(sdi)");
-    let go_conf_ok = go_conf_md.contains("SupervisionConfig.Route")
-        && go_conf_md.contains("supervisionserver")
-        && go_conf_md.contains("SupervisionCompositionError");
-    let go_guide_ok = go_guide_md.contains("## Supervise Agents with a supervision server")
-        && go_guide_md.contains("supervision.VerifyExchange")
-        && go_guide_md.contains("supervisionserver.New");
-    let go_interp_ok = go_interp_md.contains("DeferredCompositionError")
-        && go_interp_md.contains("Accept-Signature");
-    let go_journeys_ok = go_journeys_md.contains("integration/supervision_test.go")
-        || go_journeys_md.contains("supervision");
-    let s8_pass = rust_conf_ok && rust_guide_ok && go_conf_ok && go_guide_ok && go_interp_ok && go_journeys_ok;
+    let mut s8_missing = crate::audit_documents(rust_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Supervise agents with a supervision server",
+                "ps.resolve_supervision",
+                "ps.advance_supervision",
+                "ps.deliver_supervision()",
+                "ps.supervision_record(sdi)",
+            ],
+        ),
+        ("docs/features/supervision.md", &["## Held acts", "## Reports and records"]),
+    ])?;
+    s8_missing.extend(crate::audit_documents(go_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Supervise Agents with a supervision server",
+                "supervision.VerifyExchange",
+                "supervisionserver.New",
+            ],
+        ),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "A four-party narrowing travels to the Access Server",
+                "A deferred federated grant is reported once",
+            ],
+        ),
+        ("JOURNEYS.md", &["integration/supervision_test.go"]),
+        ("docs/features/supervision.md", &["## Held acts", "## Reports and records"]),
+    ])?);
+    let s8_pass = s8_missing.is_empty();
 
     // =========================================================================
     // QA-S7: Full 120-Case Regression (QA-A1 .. QA-S8)
@@ -2604,29 +2629,19 @@ pub(crate) fn run_supervision_qa(
         s7_pass
     ));
 
+
+    let passed = s8_pass;
     cases.push(QaCaseReceipt {
         id: "QA-S8".into(),
         category: "S. Supervision (Rust, Go & Cross-Language)".into(),
-        title: "Consumer Documentation Sufficiency Audit: CONFORMANCE.md & USE-IN-YOUR-SERVICE.md on aauth-rust 10cacbf7 and CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md & JOURNEYS.md on aauth-go 2fb24239".into(),
+        title: "Supervision guides in both libraries".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: s8_pass,
-        summary: format!(
-            "Consumer documentation audit verified across both repos: rust_conformance={}, rust_guide={}, go_conformance={}, go_guide={}, go_interpretations={}, go_journeys={}",
-            rust_conf_ok, rust_guide_ok, go_conf_ok, go_guide_ok, go_interp_ok, go_journeys_ok,
-        ),
-        evidence: json!({
-            "rust_conformance_ok": rust_conf_ok,
-            "rust_use_in_your_service_ok": rust_guide_ok,
-            "go_conformance_ok": go_conf_ok,
-            "go_use_in_your_service_ok": go_guide_ok,
-            "go_interpretations_ok": go_interp_ok,
-            "go_journeys_ok": go_journeys_ok,
-        }),
+        passed_expectation: passed,
+        summary: format!("Supervision guides in both libraries. Missing items: {}", s8_missing.len()),
+        evidence: json!({ "missing": s8_missing }),
     });
-    transcript_lines.push(format!(
-        "[QA-S8] PASS={}: rust_conf={} rust_guide={} go_conf={} go_guide={} go_interp={} go_journeys={}",
-        s8_pass, rust_conf_ok, rust_guide_ok, go_conf_ok, go_guide_ok, go_interp_ok, go_journeys_ok
-    ));
+    transcript_lines.push(format!("[QA-S8] PASS={passed}: missing={s8_missing:?}"));
+
 
     Ok(())
 }

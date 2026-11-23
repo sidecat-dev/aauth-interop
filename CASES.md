@@ -67,7 +67,7 @@ Sources: `runner/src/main.rs`, `runner/fleet/go_qa_fleet.go`.
 | Id | Classification | Title |
 | --- | --- | --- |
 | QA-E1 | boundary pinned | budget_consumed on R3 Class Resource Token Refused with 400 invalid_resource_token |
-| QA-E2 | boundary pinned | Go Resource snapshotHeldRequest Refuses HTTP/1.1 Requests Carrying Connection: close |
+| QA-E2 | verified working | Go Resource holds an HTTP/1.1 request with Connection: close |
 | QA-E3 | boundary pinned | Held Release Reuse vs Fresh Bytes (query-runs=2 Under Same-JTI Live Token vs Cached Custody Reuse After Class Expiry) |
 
 ## F. Live Held-Grant Poll & Retry Verification
@@ -132,7 +132,7 @@ Sources: `runner/src/events_qa.rs`, `runner/fleet/go_qa_fleet.go`.
 | QA-J4 | verified working | Cross-Language HTTPS Events: Go Resource -> Rust Agent Provider -> Rust & Go Agents |
 | QA-J5 | verified working | Rust Agent Provider Process-Restart Durability on DirectoryEventStore |
 | QA-J6 | boundary pinned | Wire Difference Pinning: Registration Signed JSON Body Without content-digest Refused by Both Rust and Go Resources |
-| QA-J7 | verified working | Consumer Documentation Audit: USE-IN-YOUR-SERVICE.md & CONFORMANCE.md in aauth-rust and aauth-go |
+| QA-J7 | verified working | Events role guidance and conformance evidence in both libraries |
 
 ## K. aauth-go Conformance Fixes
 
@@ -147,7 +147,7 @@ Sources: `runner/src/events_qa.rs`, `runner/fleet/go_qa_fleet.go`.
 | QA-K5 | verified working | PollAuthToken (AuthTokenPollResult) & PollR3Call (R3PollResult) Result Types, 429/503 Backoff Progression & Client.Reauthorize |
 | QA-K6 | verified working | MissionBlob.Approver Removal & Cross-PS / Cross-Language Mission Data Without approver |
 | QA-K7 | defect resolved | Upstream Person Token in Call Chaining Over HTTPS (Person Server POST /person & POST /token Clamping, Lineage, 6 Negative Guards + agent.Client UpstreamToken ... |
-| QA-K8 | verified working | Consumer Upgrade & Documentation Audit for the 5 Breaking Changes (CONFORMANCE.md, INTERPRETATIONS.md, SECURITY.md, Go Doc Comments & USE-IN-YOUR-SERVICE.md) |
+| QA-K8 | verified working | Current Go upgrade guidance and stable public entry points |
 
 ## L. aauth-rust Conformance Fixes & Upgrade Audit
 
@@ -170,14 +170,14 @@ Sources: `runner/src/go_sigkey_qa.rs`, `runner/fleet/go_sigkey_suite.go`.
 
 | Id | Classification | Title |
 | --- | --- | --- |
-| QA-M1 | verified working | hwk Multi-Algorithm (Ed25519, ES256, ES384, RS256, PS256), VerifyOptions.AcceptedAlgorithms Negotiation, Unknown hwk Parameters Ignored, & Bidirectional Rust ... |
+| QA-M1 | verified working | Five hwk algorithms in both HTTPS directions, local token key profiles, and endpoint negotiation |
 | QA-M2 | verified working | Direct jwks Scheme (scheme=jwks) Over Real HTTPS (HTTPKeyResolver, StaticJWKSResolver, VerifyJWKS, KeyCache), Exact Byte-for-Byte URL Identity, Same-KID ... |
 | QA-M3 | verified working | x509 Scheme Over Real HTTPS (VerifyX509 / verify_x509), Verify Refusal Guard, Chain & CRL Enforcement (Ed25519, ES256, ES384, Revoked Leaf, Expired/Missing ... |
 | QA-M4 | defect resolved | Bidirectional x509 RSA-Signed Chain & CRL Parity (Resolved in 0.1.0-alpha.15 / 3335414): RSA-Signed Root/Intermediate CA + RSA-Signed CRL Issuing EC (ES256) or ... |
 | QA-M5 | verified working | cached Scheme & AssertionCache Lifecycle (Direct Verify Refusal, Sealed Unpredictable Identifiers, Fleet vs Standalone Resolution, cache_miss vs expired_jwt vs ... |
 | QA-M6 | verified working | Bidirectional Cross-Language cached Scheme, Signature-Key-Cache, cache_miss, & CachingCredential Recovery Over Real HTTPS |
 | QA-M7 | verified working | Multiple Signatures (SignRequests / sign_requests) Covering Complete Signature-Key Dictionary, unsupported_scheme Precedence Over Malformed Scheme Parameters, ... |
-| QA-M8 | verified working | Documentation, Conformance & Public API Audit (CONFORMANCE.md, INTERPRETATIONS.md, SPEC-FEEDBACK.md, USE-IN-YOUR-SERVICE.md) + Native go test ./jose/... ... |
+| QA-M8 | verified working | Go Signature-Key geometry, usage guidance and package tests |
 
 ## N. Rust Metadata, Capabilities, Missions, Budgets & Interaction, with Cross-Language Interop
 
@@ -194,7 +194,7 @@ Sources: `runner/src/alpha14_qa.rs`, `runner/fleet/go_alpha14_suite.go`.
 | QA-N7 | verified working | Budgets usage_request & read_usage over HTTPS: Rust PS->Rust Res all_time=Some(500000) (sig_ver=true), Rust PS->Go Res all_time=Some(750000), Rust AS->Go Res ... |
 | QA-N8 | verified working | R3Definitions & Display::merged over HTTPS: guards=true, merge_rules=true, proactive_status=200, composed_summary=String("Read customer records; Delete ... |
 | QA-N9 | verified working | 3-party resource-initiated interaction over HTTPS: authorize_with_interaction -> 202 /token/interaction/{id} -> redirect_to_resource -> /connect -> ... |
-| QA-N10 | verified working | Consumer documentation audit: CONFORMANCE.md covers all 15 features (true), USE-IN-YOUR-SERVICE.md covers all new entry points (true), and prior ... |
+| QA-N10 | verified working | Rust metadata, capabilities, missions, Budgets and interaction guidance with current install examples |
 
 ## O. Rust Signing Keys, Call Chaining & X.509, with Cross-Language Interop
 
@@ -208,7 +208,7 @@ Sources: `runner/src/alpha15_qa.rs`, `runner/fleet/go_alpha15_suite.go`.
 | QA-O4 | verified working | SigningKey::from_pkcs8_der multi-algorithm signing & Rust+Go HTTPS verification passed [Ed25519(len=64,go=200), ES256(len=64,go=200), ES384(len=96,go=200), ... |
 | QA-O5 | verified working | RSA-signed X.509 chains & CRLs verified in aauth-rust & cross-language with Go (closing QA-M4): RSA-SHA256/384/512 CAs=true, 2048-bit RSA CA Rust=true & Go ... |
 | QA-O6 | boundary pinned | Cross-language call chaining verified & Go 4-party/mission chaining boundaries pinned over HTTPS: working flows [4-party Rust PS->Rust AS->Go Res=true, 3-party ... |
-| QA-O7 | verified working | Consumer documentation audit passed: Cargo.toml version=0.1.0-alpha.15, CONFORMANCE.md ('Added later on 2026-10-30' + AS step-up revocation in 1f59a06) and ... |
+| QA-O7 | verified working | Rust signing and four-party chaining guidance |
 
 ## P. Go Interaction, Links, Delayed Requests, Revocation, R3, Budgets & Events, with Cross-Language Interop
 
@@ -226,7 +226,7 @@ Sources: `runner/src/go_features_qa.rs`, `runner/fleet/go_features_suite.go`.
 | QA-P8 | verified working | Events inbox reader (agentprovider.EventInboxReader) over HTTPS: Go->Go exact byte preservation + tamper/misroute guards + AcknowledgeEvent + ... |
 | QA-P9 | verified working | FurtherSchemesConfig over HTTPS: Accept-Signature-Scheme/Alg ordering=true, Go hwk(ES256)/jwks/x509/jkt-jwt;cache/cached->FurtherSchemes.Protected=true, AAuth ... |
 | QA-P10 | defect resolved | Cross-language 4-party call chaining matrix & updated QA-O6 boundaries over HTTPS: All-Go 4-party (FederatedCallChainingConfig + AS upstream_token)=true, Go ... |
-| QA-P11 | defect resolved | aauth-go (main 445af350) consumer documentation audit passed: CONFORMANCE.md 'Features added on 2026-10-30' covers all 10 features (true), ... |
+| QA-P11 | defect resolved | Go Resource and federation feature guidance and interpretations |
 
 ## Q. Four-Party Missions & Metered R3 Release, with Cross-Language Interop
 
@@ -238,8 +238,8 @@ Sources: `runner/src/alpha16_qa.rs`, `runner/fleet/go_alpha16_suite.go`.
 | QA-Q2 | verified working | 4-party missions end-to-end over HTTPS verified: Resource with_mission_context challenge & AuthToken admission=true, happy path PS->AS->Resource with federated ... |
 | QA-Q3 | verified working | 4-party mission call chaining & caller PersonToken chain revocation over HTTPS verified: 3-hop 4-party chain preserves mission_s256 & exp<=mission.expires_at ... |
 | QA-Q4 | verified working | Cross-language 4-party missions (Rust <-> Go main 445af350) over HTTPS verified: Go Fed PS -> Rust AS & Go AS (Rust & Go Resources)=true/true/true/true, Rust ... |
-| QA-Q5 | verified working | Metered release of held R3 result (`with_release_metering`, `R3Release::cost`) & cross-language wire check verified: config guards=true, proposal offers cost ... |
-| QA-Q6 | defect resolved | Consumer documentation audit passed for aauth-rust 0.1.0-alpha.16 (9961b6cc) & aauth-go main (445af350): Cargo.toml/README/PACKAGE-README ... |
+| QA-Q5 | verified working | Metered held-result release, single charge, replay, and the Rust Person Server relay ceiling |
+| QA-Q6 | defect resolved | Rust mission, metered release and current crate install guidance |
 
 ## R. Go Call Chaining, Polling & Hosted-Page Callbacks
 
@@ -253,7 +253,7 @@ Sources: `runner/src/go_chaining_qa.rs`, `runner/fleet/go_chaining_suite.go`.
 | QA-R4 | verified working | Shared agent.Pending[T] Polling Across All Deferred Agent Flows Over Real HTTPS (PollTooEarlyError, 429 +5s, 503 Retry-After, Prefer: wait=30, Interacting, ... |
 | QA-R5 | verified working | Hosted-Page Callbacks Over Real HTTPS: ConsumeAuthorizationInteractionVisit, ConsumePersonTokenInteractionVisit, ConsumeSessionInteractionVisit, *CallbackURL, ... |
 | QA-R6 | defect resolved | Updated QA-P10 (B2, B3-subagent, B4) & QA-Q4 Boundary Re-Verification + Full 112-Case Regression |
-| QA-R7 | verified working | Consumer Documentation Sufficiency Audit: CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md, and JOURNEYS.md on aauth-go 8a3734dd |
+| QA-R7 | verified working | Go call chaining and hosted callback guidance |
 
 ## S. Supervision (Rust, Go & Cross-Language)
 
@@ -262,13 +262,13 @@ Sources: `runner/src/supervision_qa.rs`, `runner/fleet/go_supervision_suite.go`.
 | Id | Classification | Title |
 | --- | --- | --- |
 | QA-S1 | verified working | Rust Supervision: Four Draft Use Cases Over Real HTTPS (standing + ask + always remembered, multi-SS routing, SS down -> fallback -> outbox replay in order, ... |
-| QA-S2 | verified working | Rust Supervision: Answer Types, Missions, Four-Party, Recovery & Signature-Key ;req Response Signatures Over Real HTTPS |
+| QA-S2 | verified working | Rust Supervision decisions, missions, narrowed four-party grants, recovery and signed responses |
 | QA-S3 | verified working | Go Supervision: Four Draft Use Cases & Store Conformance Over Real HTTPS (testutil.NewSupervisionStore, testutil.NewSupervisorStore, standing + ask + always ... |
-| QA-S4 | verified working | Go Supervision: Answer Types, Missions, Four-Party & Recovery Over Real HTTPS (allow/narrow/deny/ask/SS-202/clarification with updated_request, missions, ... |
-| QA-S5 | verified working | Cross-Language Supervision Direction 1 (Go Person Server <-> Rust Supervision Server) Over Real HTTPS (all 4 use cases, all answer types, missions, 4-party, ... |
-| QA-S6 | verified working | Cross-Language Supervision Direction 2 (Rust Person Server <-> Go Supervision Server) Over Real HTTPS (all 4 use cases, all answer types + updated_request ... |
+| QA-S4 | verified working | Go Supervision decisions, missions, narrowed grants and one pending reference across Person and Access Server waits |
+| QA-S5 | verified working | Go Person Server and Rust Supervisor, including a narrowed four-party grant |
+| QA-S6 | verified working | Rust Person Server and Go Supervisor, including a narrowed four-party grant and deferred delivery |
 | QA-S7 | verified working | Full 120-Case Regression (QA-A1..QA-R7 + QA-S1..QA-S8) across Rust v0.1.0-alpha.17 (10cacbf7) and Go 2fb24239 |
-| QA-S8 | verified working | Consumer Documentation Sufficiency Audit: CONFORMANCE.md & USE-IN-YOUR-SERVICE.md on aauth-rust 10cacbf7 and CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, ... |
+| QA-S8 | verified working | Supervision guides in both libraries |
 
 ## T. Access Server Interaction Relay, Chained Budgets & Metered Release
 
@@ -277,9 +277,9 @@ Sources: `runner/src/go_budget_relay_qa.rs`, `runner/fleet/go_budget_relay_suite
 | Id | Classification | Title |
 | --- | --- | --- |
 | QA-T1 | verified working | All-Go Access Server Interaction Relayed to Top-Level and Chained Agents Over Real HTTPS (First Answer, Later Advance, Code Immutability, 403 user_unreachable ... |
-| QA-T2 | verified working | All-Go Three-Hop Four-Party Chained Budget Over Real HTTPS (Independent Per-Hop Ceiling & Grant, Upstream Token Unconsumed, Over-Budget 403, UpstreamToken ... |
+| QA-T2 | verified working | Three-hop Go Budget chain with a budgeted upstream token and independent downstream ceilings |
 | QA-T3 | verified working | All-Go Four-Party Metered Release of Held R3 Results Over Real HTTPS (Proposal ResourceToken Offer, ParseReferencedArtifact Result Member, ... |
-| QA-T4 | verified working | Cross-Language Interoperability Over Real HTTPS: Relayed AS Interaction (Go/Rust Agents & AS), Bidirectional 4-Party Budgeted Chaining, and Bidirectional ... |
+| QA-T4 | verified working | Mixed HTTPS interaction relay and Budget chaining, metered release through a Rust Person Server and Go Access Server, and remaining role limits |
 | QA-T5 | defect resolved | Re-Check of OBS-S6-1: supervision.Clarification.Validate Whole-Second Timeout Enforcement (1ns, 500ms, 1.5s, -1s Refused) & ... |
 | QA-T6 | verified working | Updated QA-R3 Boundary & Full 127-Case Regression (QA-A1..QA-S8 + QA-T1..QA-T7) across aauth-go 9b14543d and aauth-rust v0.1.0-alpha.17 (10cacbf7) |
-| QA-T7 | verified working | Consumer Documentation Sufficiency Audit: CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md & JOURNEYS.md on aauth-go 9b14543d |
+| QA-T7 | verified working | Go interaction relay, chained Budgets and metered-release guidance |

@@ -472,7 +472,7 @@ impl Policy for QSharedMissionPsPolicy {
 pub fn run_alpha16_qa_cases(
     body: &Value,
     out_dir: &Path,
-    go_module_path: &str,
+    _go_module_path: &str,
     clock: i64,
     trust: &Trust,
     qa_cases: &mut Vec<QaCaseReceipt>,
@@ -3364,94 +3364,41 @@ pub fn run_alpha16_qa_cases(
     }));
 
     // =========================================================================
-    // QA-Q6: Consumer Documentation Sufficiency Audit (Cargo.toml 0.1.0-alpha.16,
-    // CONFORMANCE.md "Added on 2026-10-31", README.md, PACKAGE-README.md,
-    // USE-IN-YOUR-SERVICE.md, DOC-OBS-O7-1 & DOC-OBS-P11-1..3)
-    // =========================================================================
+    // QA-Q6: Rust mission, release and crate installation guidance
     let rust_root = crate::rust_source();
-    let cargo_toml = fs::read_to_string(rust_root.join("Cargo.toml"))?;
-    let readme_md = fs::read_to_string(rust_root.join("README.md"))?;
-    let pkg_readme_md = crate::read_audit_document(&rust_root.join("PACKAGE-README.md"))?;
-    let conf_md = fs::read_to_string(rust_root.join("CONFORMANCE.md"))?;
-    let use_md = fs::read_to_string(rust_root.join("USE-IN-YOUR-SERVICE.md"))?;
-
-    let go_root = Path::new(go_module_path);
-    let go_conf_md = fs::read_to_string(go_root.join("CONFORMANCE.md"))?;
-    let go_interp_md = fs::read_to_string(go_root.join("INTERPRETATIONS.md"))?;
-
-    let q6_version_ok = (cargo_toml.contains("version = \"0.1.0-alpha.16\"")
-        || cargo_toml.contains("version = \"0.1.0-alpha.17\""))
-        && !cargo_toml.contains("0.1.0-alpha.15")
-        && (readme_md.contains("v0.1.0-alpha.16") || readme_md.contains("v0.1.0-alpha.17"))
-        && (readme_md.contains("version = \"0.1.0-alpha.16\"") || readme_md.contains("version = \"0.1.0-alpha.17\""))
-        && (pkg_readme_md.contains("`0.1.0-alpha.16`") || pkg_readme_md.contains("`0.1.0-alpha.17`"));
-
-    let q6_conformance_ok = [
-        "Added on 2026-10-31:",
-        "Four-party missions, chained or not.",
-        "MissionStore::commit_mission_token",
-        "403 mission_terminated",
-        "with_mission_context",
-        "Metered release of a held R3 result. With `with_release_metering`",
-        "R3Release::cost",
-        "API change: `R3Release` gains `cost`.",
-        "missions carried down three- and four-party chains",
-        "Federated (four-party) and upstream mission paths are supported, chained or not",
-    ]
-    .iter()
-    .all(|needle| conf_md.contains(needle));
-
-    let q6_use_md_ok = [
-        "To meter the release of a result rather than the execution, enable budgets and\ncall `with_release_metering` after `with_r3_per_call`.",
-        "R3Release::cost",
-        "aauth_rust_r3::verify_budget_resource_token",
-        "aauth_rust_r3::verify_budget_per_call_auth_token",
-        "Missions work through federation, chained or not.",
-        "MissionStore::commit_mission_token",
-        "with_mission_context",
-        "InvalidR3Profile",
-    ]
-    .iter()
-    .all(|needle| use_md.contains(needle));
-
-    // Verify DOC-OBS-O7-1 (stale "The direct constructor implements immediate, missionless PS authorization..."
-    // paragraph in USE-IN-YOUR-SERVICE.md) is resolved in 0.1.0-alpha.16
-    let q6_doc_obs_o7_1_resolved = !use_md
-        .contains("The direct constructor implements immediate, missionless PS authorization.")
-        && use_md.contains("The direct constructor issues Person and Auth tokens from this PS immediately.\nEverything else is opt-in on the same value.");
-
-    // Verify DOC-OBS-P11-1..3 in aauth-go main (445af350) remain resolved
-    let q6_doc_obs_p11_resolved = !go_conf_md.contains("and the `cached` scheme stays unsupported")
-        && !(go_interp_md
-            .contains("The Access Server keeps no revocation records, so it never answers")
-            && go_interp_md.contains("`revoked_upstream_token`."))
-        && !go_conf_md.contains("Only AP Agent tokens and PS Auth tokens are supported.");
-
-    let q6_pass = q6_version_ok
-        && q6_conformance_ok
-        && q6_use_md_ok
-        && q6_doc_obs_o7_1_resolved
-        && q6_doc_obs_p11_resolved;
-
+    let mut missing = crate::audit_documents(rust_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "with_release_metering",
+                "R3Release::cost",
+                "verify_budget_resource_token",
+                "verify_budget_per_call_auth_token",
+                "Missions work through federation",
+                "MissionStore::commit_mission_token",
+                "with_mission_context",
+                "InvalidR3Profile",
+            ],
+        ),
+        ("docs/features/r3.md", &["## Turning it on", "## Limits", "release"]),
+        ("docs/features/missions.md", &["## Issuing under a mission", "## Limits"]),
+    ])?;
+    missing.extend(crate::audit_rust_install_version(rust_root)?);
     cases.push(json!({
         "id": "QA-Q6",
         "classification": "DEFECT_RESOLVED",
-        "pass": q6_pass,
-        "summary": format!(
-            "Consumer documentation audit passed for aauth-rust 0.1.0-alpha.16 (9961b6cc) & aauth-go main (445af350): Cargo.toml/README/PACKAGE-README version=0.1.0-alpha.16 ({}), CONFORMANCE.md 'Added on 2026-10-31' covers 4-party missions, metered R3 release & breaking API changes ({}), USE-IN-YOUR-SERVICE.md documents with_mission_context/commit_mission_token/with_release_metering/R3Release::cost ({}), DOC-OBS-O7-1 resolved in aauth-rust ({}), and DOC-OBS-P11-1..3 resolved in aauth-go main ({})",
-            q6_version_ok,
-            q6_conformance_ok,
-            q6_use_md_ok,
-            q6_doc_obs_o7_1_resolved,
-            q6_doc_obs_p11_resolved,
-        ),
-        "details": {
-            "version_0_1_0_alpha_16_ok": q6_version_ok,
-            "conformance_added_2026_10_31_ok": q6_conformance_ok,
-            "use_in_your_service_ok": q6_use_md_ok,
-            "doc_obs_o7_1_resolved": q6_doc_obs_o7_1_resolved,
-            "doc_obs_p11_1_to_3_resolved": q6_doc_obs_p11_resolved,
-        },
+        "pass": missing.is_empty(),
+        "summary": format!("Rust mission, release and crate installation guidance. Missing items: {}", missing.len()),
+        "missing": missing,
     }));
 
     for c in cases {

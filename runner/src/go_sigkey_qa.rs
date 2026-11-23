@@ -1572,62 +1572,44 @@ pub fn run_go_sigkey_qa_cases(
     // ./jose/... ./signaturekey/... Verification
     // =========================================================================
     let go_mod_dir = Path::new(go_module_path);
-    let conformance_md = fs::read_to_string(go_mod_dir.join("CONFORMANCE.md")).unwrap_or_default();
-    let interpretations_md =
-        fs::read_to_string(go_mod_dir.join("INTERPRETATIONS.md")).unwrap_or_default();
-    let spec_feedback_md =
-        fs::read_to_string(go_mod_dir.join("SPEC-FEEDBACK.md")).unwrap_or_default();
-    let use_in_service_md =
-        fs::read_to_string(go_mod_dir.join("USE-IN-YOUR-SERVICE.md")).unwrap_or_default();
-
-    let m8_rows_added_ok = conformance_md.contains("| `hwk` scheme | Implemented |")
-        && conformance_md.contains("| `jwks` scheme | Implemented |")
-        && conformance_md.contains("| `x509` scheme | Implemented |")
-        && conformance_md.contains("| `cached` scheme and Signature-Key-Cache | Implemented |")
-        && conformance_md.contains("| Multiple signatures | Implemented |")
-        && !conformance_md.contains("| `jwks`, `x509`, and `cached` schemes | Not implemented |");
-    let m8_stale_sentence_in_row1 = conformance_md.contains(
-        "No response emits `Signature-Key-Cache`, and the `cached` scheme stays unsupported.",
-    );
-    let m8_docs_sections_ok =
-        interpretations_md.contains("## Request-key algorithms are an endpoint choice")
-            && interpretations_md.contains("## An x509 proof needs a host-supplied chain, anchors and CRLs")
-            && interpretations_md.contains("## Assertion caching seals its identifiers and refuses long-lived assertions")
-            && spec_feedback_md.contains("AAG-F121")
-            && use_in_service_md.contains("## Verify other Signature-Key schemes")
-            && use_in_service_md.contains("### Cache an assertion");
-
-    let go_test_out = Command::new("go")
+    let mut missing = crate::audit_documents(go_mod_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "Request-key algorithms are an endpoint choice",
+                "An x509 proof needs a host-supplied chain, anchors and CRLs",
+                "Assertion caching seals its identifiers",
+            ],
+        ),
+        ("SPEC-FEEDBACK.md", &["AAG-F121"]),
+        ("USE-IN-YOUR-SERVICE.md", &["## Verify other Signature-Key schemes", "### Cache an assertion"]),
+    ])?;
+    let go_tests = Command::new("go")
         .args(["test", "-count=1", "./jose/...", "./signaturekey/..."])
         .current_dir(go_mod_dir)
         .output()?;
-    let m8_go_test_ok = go_test_out.status.success();
-    let m8_all_ok = m8_rows_added_ok && m8_docs_sections_ok && m8_go_test_ok;
-
+    if !go_tests.status.success() {
+        missing.push("Go jose or signaturekey package tests failed".into());
+    }
     qa_cases.push(QaCaseReceipt {
         id: "QA-M8".into(),
         category: "M. Signature-Key Schemes & Cross-Language Interop".into(),
-        title: "Documentation, Conformance & Public API Audit (CONFORMANCE.md, INTERPRETATIONS.md, SPEC-FEEDBACK.md, USE-IN-YOUR-SERVICE.md) + Native go test ./jose/... ./signaturekey/... Suite".into(),
+        title: "Signature-Key guidance and Go package tests".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: m8_all_ok,
-        summary: format!(
-            "All new CONFORMANCE.md, INTERPRETATIONS.md, SPEC-FEEDBACK.md (AAG-F121), and USE-IN-YOUR-SERVICE.md sections verified and native `go test ./jose/... ./signaturekey/...` passed ({}); DOC-OBS-M8-1 (stale sentence in CONFORMANCE.md:225 row 1: {}), API-OBS-M8-2, and API-OBS-M8-3 all resolved in aauth-go 671a88f2 & aauth-rust 0.1.0-alpha.15 (15133dc2)",
-            m8_go_test_ok, m8_stale_sentence_in_row1
-        ),
-        evidence: json!({
-            "conformance_rows_implemented": m8_rows_added_ok,
-            "docs_sections_present": m8_docs_sections_ok,
-            "go_test_jose_and_signaturekey_passed": m8_go_test_ok,
-            "go_test_stdout": String::from_utf8_lossy(&go_test_out.stdout).trim(),
-            "doc_obs_m8_1_stale_sentence_in_conformance_row1": m8_stale_sentence_in_row1,
-            "api_obs_m8_2_signing_surface": "RESOLVED in aauth-rust 0.1.0-alpha.15 (2886ce4 & a001102): SigningKey::from_pkcs8_der supports all 5 algorithms (Ed25519, ES256, ES384, RS256, PS256) and KeyMaterial::Jwt { jwt, cache } supports bare ;cache flag matching aauth-go",
-            "api_obs_m8_3_thumbprint_surface": "RESOLVED in aauth-rust 0.1.0-alpha.15 (2886ce4): aauth_rust_jose::Jwk::thumbprint() computes RFC 7638 SHA-256 thumbprints for all 5 SignatureAlgorithms (OKP, EC, RSA) matching aauth-go",
-        }),
+        passed_expectation: missing.is_empty(),
+        summary: format!("Missing documentation or test checks: {}", missing.len()),
+        evidence: json!({ "missing": missing, "go_tests_passed": go_tests.status.success() }),
     });
-    transcript_lines.push(format!(
-        "[QA-M8] PASS: docs_and_conformance_ok={} go_test_jose_sigkey={} doc_obs_m8_1_detected={}",
-        m8_all_ok, m8_go_test_ok, m8_stale_sentence_in_row1
-    ));
+    transcript_lines.push(format!("[QA-M8] missing={missing:?}"));
 
     Ok(())
 }

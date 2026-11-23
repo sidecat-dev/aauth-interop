@@ -95,6 +95,40 @@ fn read_audit_document(path: &Path) -> Result<String> {
     }
 }
 
+fn audit_documents(root: &Path, documents: &[(&str, &[&str])]) -> Result<Vec<String>> {
+    let mut missing = Vec::new();
+    for (path, terms) in documents {
+        let text = read_audit_document(&root.join(path))?;
+        for &term in *terms {
+            if !text.contains(term) {
+                missing.push(format!("{path}: {term}"));
+            }
+        }
+    }
+    Ok(missing)
+}
+
+fn audit_rust_install_version(root: &Path) -> Result<Vec<String>> {
+    let manifest = fs::read_to_string(root.join("Cargo.toml"))?;
+    let version = manifest
+        .lines()
+        .skip_while(|line| line.trim() != "[workspace.package]")
+        .skip(1)
+        .take_while(|line| !line.trim_start().starts_with('['))
+        .find_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            (key.trim() == "version").then(|| value.trim().trim_matches('"'))
+        });
+    let Some(version) = version.filter(|version| !version.is_empty()) else {
+        return Ok(vec!["Cargo.toml: workspace package version".into()]);
+    };
+    audit_documents(root, &[
+        ("README.md", &[&format!("v{version}"), &format!("aauth-rust = \"{version}\"")]),
+        ("crates/aauth-rust/README.md", &[&format!("cargo add aauth-rust@{version}")]),
+        ("crates/aauth-rust-agent/README.md", &[&format!("cargo add aauth-rust-agent@{version}")]),
+    ])
+}
+
 fn rust_source() -> &'static Path {
     RUST_SOURCE.get().expect("--rust-source is set in main").as_path()
 }

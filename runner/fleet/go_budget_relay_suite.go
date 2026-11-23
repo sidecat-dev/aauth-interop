@@ -593,7 +593,7 @@ func runTSuite(
 			RequiredScopes:    func(*http.Request) []string { return []string{"work.run"} },
 			ResolvePerson:     func(context.Context, resource.PersonIdentity, resource.PersonContext) error { return nil },
 			Budget: &resource.BudgetConfig{
-				Units: t2Units,
+				Units:         t2Units,
 				Offer: func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) {
 					return req.Requested, nil
 				},
@@ -1106,7 +1106,7 @@ func runTSuite(
 		Issuer: t3ASIssuer, DWK: aauth.AccessDiscoveryDocument, Audience: t3ResIssuer, JTI: nextTID(),
 		PersonServer: t3PSIssuer, Subject: t3PropRTClaims.Subject, Tenant: t3PropRTClaims.Tenant,
 		Confirmation: aauth.Confirmation{JWK: t3AgKey.PublicJWK()},
-		IssuedAt:     clock.Now().Unix(), ExpiresAt: clock.Now().Add(5 * time.Minute).Unix(), Scope: "reports.read",
+		IssuedAt: clock.Now().Unix(), ExpiresAt: clock.Now().Add(5 * time.Minute).Unix(), Scope: "reports.read",
 	}, t3PropRef, t3PropRec.ExactJSON)
 	must(err, "t3UnfundedAT")
 	_, t3UnfundedCliErr := t3Agent.PollR3Call(ctx, clientagent.R3Poll{Pending: t3Pending, AuthToken: t3UnfundedAT})
@@ -1173,16 +1173,16 @@ func runTSuite(
 	// QA-T4: Cross-Language (aauth-go 9b14543 <-> aauth-rust v0.1.0-alpha.17)
 	// =========================================================================
 	const (
-		t4GoAPIssuer         = "https://t4-go-ap.example"
-		t4GoCallerID         = "aauth:caller@t4-go-ap.example"
-		t4GoIntermIssuer     = "https://t4-go-interm.example"
-		t4GoIntermAgID       = "aauth:relay@t4-go-interm.example"
-		t4GoFedPSIssuer      = "https://t4-go-fed-ps.example"
-		t4GoDirectPSIssuer   = "https://t4-go-direct-ps.example"
-		t4GoASIssuer         = "https://t4-go-as.example"
-		t4GoResIssuer        = "https://t4-go-res.example"
-		t4GoHeldResIssuer    = "https://t4-go-held-res.example"
-		t4GoHeldRustASIssuer = "https://t4-go-held-rust-as.example"
+		t4GoAPIssuer          = "https://t4-go-ap.example"
+		t4GoCallerID          = "aauth:caller@t4-go-ap.example"
+		t4GoIntermIssuer      = "https://t4-go-interm.example"
+		t4GoIntermAgID        = "aauth:relay@t4-go-interm.example"
+		t4GoFedPSIssuer       = "https://t4-go-fed-ps.example"
+		t4GoDirectPSIssuer    = "https://t4-go-direct-ps.example"
+		t4GoASIssuer          = "https://t4-go-as.example"
+		t4GoResIssuer         = "https://t4-go-res.example"
+		t4GoHeldResIssuer     = "https://t4-go-held-res.example"
+		t4GoHeldRustASIssuer  = "https://t4-go-held-rust-as.example"
 	)
 	t4GoAPKey := newTKey("t4-go-ap-1", 0xe8)
 	t4GoCallerKey := newTKey("t4-go-caller-1", 0xe9)
@@ -1381,8 +1381,8 @@ func runTSuite(
 			RequiredScopes:    func(*http.Request) []string { return []string{"records.read"} },
 			ResolvePerson:     func(context.Context, resource.PersonIdentity, resource.PersonContext) error { return nil },
 			Budget: &resource.BudgetConfig{
-				Units:   t2Units,
-				Metered: func(r *http.Request) bool { return r.URL.Path == "/metered" },
+				Units:         t2Units,
+				Metered:       func(r *http.Request) bool { return r.URL.Path == "/metered" },
 				Offer: func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) {
 					return req.Requested, nil
 				},
@@ -1447,7 +1447,7 @@ func runTSuite(
 						return resource.R3CallDescription{}, errors.New("not execution")
 					},
 					Release: &resource.R3ReleaseConfig{
-						Eligible:     func(context.Context, r3.Invocation) (bool, error) { return true, nil },
+						Eligible: func(context.Context, r3.Invocation) (bool, error) { return true, nil },
 						MeterRelease: true,
 						DescribeResult: func(context.Context, resource.R3ReleaseRequest) (resource.R3ReleaseDescription, error) {
 							return resource.R3ReleaseDescription{
@@ -1695,7 +1695,7 @@ func runTSuite(
 		Issuer: in.T4RustASIssuer, DWK: aauth.AccessDiscoveryDocument, Audience: t4GoHeldRustASIssuer, JTI: nextTID(),
 		PersonServer: t4GoFedPSIssuer, Subject: t4ClassClaims.Subject, Tenant: t4ClassClaims.Tenant,
 		Confirmation: aauth.Confirmation{JWK: t4GoCallerKey.PublicJWK()},
-		IssuedAt:     clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "reports.read",
+		IssuedAt: clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "reports.read",
 	}, t4ClassRef, t4ClassDocRec.ExactJSON, t4ClassAuthz)
 	must(err, "MintAuthToken t4ClassATGoHeldRustAS")
 	t4HeldRustASReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, t4GoHeldRustASIssuer+"/reports/q3", nil)
@@ -1745,7 +1745,7 @@ func runTSuite(
 		Issuer: t4GoDirectPSIssuer, DWK: aauth.PersonDiscoveryDocument, Audience: in.T4RustHeldDirectIssuer, JTI: nextTID(),
 		PersonServer: t4GoDirectPSIssuer, Subject: t4DirRTClaims.Subject, Tenant: t4DirRTClaims.Tenant,
 		Confirmation: aauth.Confirmation{JWK: t4GoCallerKey.PublicJWK()},
-		IssuedAt:     clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "records.read",
+		IssuedAt: clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "records.read",
 	}, t4DirRTRef, t4DirDocBytes, t4DirAuthz)
 	must(err, "MintAuthToken t4DirPerCallClassAT")
 	// Call Rust Direct Held Resource directly with signed POST /records/metered-query

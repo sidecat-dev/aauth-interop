@@ -1549,50 +1549,43 @@ pub fn run_go_chaining_qa_cases(
     ));
 
     // =========================================================================
-    // QA-R7: Consumer Documentation Sufficiency Audit (aauth-go 8a3734dd)
-    // =========================================================================
-    let go_conf_md = fs::read_to_string(go_mod_dir.join("CONFORMANCE.md"))?;
-    let go_guide_md = fs::read_to_string(go_mod_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_interp_md = fs::read_to_string(go_mod_dir.join("INTERPRETATIONS.md"))?;
-    let go_journeys_md = fs::read_to_string(go_mod_dir.join("JOURNEYS.md"))?;
-
-    let conf_ok = go_conf_md.contains("Changes on 2026-10-31: four-party call chaining.")
-        && go_conf_md.contains("Features added on 2026-10-31:")
-        && go_conf_md.contains("IssuedTokens");
-    let guide_ok = go_guide_md.contains("IssuedTokens")
-        && go_guide_md.contains("agent.Pending")
-        && go_guide_md.contains("ConsumeAuthorizationInteractionVisit")
-        && go_guide_md.contains("ConsumePersonTokenInteractionVisit")
-        && go_guide_md.contains("ConsumeSessionInteractionVisit")
-        && go_guide_md.contains("RedirectToResourceInteraction");
-    let interp_ok = go_interp_md.contains("upstream_token") && go_interp_md.contains("revoked_upstream_token");
-    let journeys_chain_updated = go_journeys_md.contains("`integration/call_chaining_hops_test.go`");
-    let journeys_mission_stale_bullet = go_journeys_md.contains("Missing: call chaining; budgets and R3 in a mission; deferred mission update and completion; and revocation.");
-
-    let r7_pass = conf_ok && guide_ok && interp_ok && journeys_chain_updated;
-
+    let missing = crate::audit_documents(go_mod_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "IssuedTokens",
+                "agent.Pending",
+                "ConsumeAuthorizationInteractionVisit",
+                "ConsumePersonTokenInteractionVisit",
+                "ConsumeSessionInteractionVisit",
+                "RedirectToResourceInteraction",
+            ],
+        ),
+        ("INTERPRETATIONS.md", &["An Access Server verifies the upstream token", "revoked_upstream_token"]),
+        ("JOURNEYS.md", &["integration/call_chaining_hops_test.go"]),
+        ("docs/features/call-chaining.md", &["## Four-party chains", "## Rules the library enforces"]),
+    ])?;
+    let passed = missing.is_empty();
     cases.push(QaCaseReceipt {
         id: "QA-R7".into(),
         category: "R. Go Call Chaining, Polling & Hosted-Page Callbacks".into(),
-        title: "Consumer Documentation Sufficiency Audit: CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md, and JOURNEYS.md on aauth-go 8a3734dd".into(),
+        title: "Go call chaining and hosted callback guidance".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: r7_pass,
-        summary: format!(
-            "Consumer documentation audit verified: CONFORMANCE.md (2026-10-31 chaining & polling entries + IssuedTokens + remaining boundaries)={}, USE-IN-YOUR-SERVICE.md (IssuedTokens, agent.Pending[T], *InteractionVisit & *CallbackURL & RedirectToResourceInteraction)={}, INTERPRETATIONS.md={}, JOURNEYS.md updated={} (minor doc note: JOURNEYS.md line 243 Mission lifecycle 'Missing:' bullet still lists 'call chaining; ... and revocation'={})",
-            conf_ok, guide_ok, interp_ok, journeys_chain_updated, journeys_mission_stale_bullet,
-        ),
-        evidence: json!({
-            "conformance_md_ok": conf_ok,
-            "use_in_your_service_md_ok": guide_ok,
-            "interpretations_md_ok": interp_ok,
-            "journeys_chain_section_updated": journeys_chain_updated,
-            "journeys_mission_line_243_minor_stale_note": journeys_mission_stale_bullet,
-        }),
+        passed_expectation: passed,
+        summary: format!("Go call chaining and hosted callback guidance. Missing items: {}", missing.len()),
+        evidence: json!({ "missing": missing }),
     });
-    transcript_lines.push(format!(
-        "[QA-R7] PASS={}: conf={} guide={} interp={} journeys={} (minor_note_line243={})",
-        r7_pass, conf_ok, guide_ok, interp_ok, journeys_chain_updated, journeys_mission_stale_bullet
-    ));
+    transcript_lines.push(format!("[QA-R7] PASS={passed}: missing={missing:?}"));
+
 
     Ok(())
 }

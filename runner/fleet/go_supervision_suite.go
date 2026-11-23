@@ -224,8 +224,8 @@ func newSGoSSHost(
 						exp := clock.Now().Unix() + 900
 						return supervisionserver.DecisionResult{
 							Decision: &supervision.Decision{
-								Verdict:   supervision.VerdictAllow,
-								Scope:     scope,
+								Verdict: supervision.VerdictAllow,
+								Scope:   scope,
 								ExpiresAt: exp,
 							},
 						}, nil
@@ -433,11 +433,11 @@ func (h *sGoSSHost) handleQACtl(w http.ResponseWriter, r *http.Request) {
 		mutReq.Request.Header.Set("Content-Digest", "sha-256=:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=:")
 		_, mutReqErr := supervision.VerifyExchange(r.Context(), mutReq, h.resolver)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":              dErr == nil,
-			"signer":          verified.Signer(),
-			"verify_decision": dErr == nil,
-			"mut_resp_failed": mutRespErr != nil,
-			"mut_req_failed":  mutReqErr != nil,
+			"ok":               dErr == nil,
+			"signer":           verified.Signer(),
+			"verify_decision":  dErr == nil,
+			"mut_resp_failed":  mutRespErr != nil,
+			"mut_req_failed":   mutReqErr != nil,
 		})
 	default:
 		http.Error(w, "unknown action", http.StatusBadRequest)
@@ -1303,7 +1303,7 @@ func runSSuite(
 		resolveErr := s4FedPS.ResolveSupervision(ctx, reference, personserver.SupervisionAnswer{
 			Answer: supervision.AnswerAllow,
 		})
-		sAdvanceClock(5 * time.Second)
+	sAdvanceClock(5 * time.Second)
 		wait, pollErr := s4FedAg.PollExchange(ctx, s4FedAskASPend)
 		again, pending := wait.Pending()
 		s4ASDefer.Store(false)
@@ -1825,34 +1825,34 @@ func runSSuite(
 			"told_after_wake":         s3ToldAfterWake,
 		},
 		"s4": map[string]any{
-			"narrow_allow_ok":                 s4NarrowAllowOK,
-			"deny_ok":                         s4DenyOK,
-			"defer_ok":                        s4DeferOK,
-			"clarify_ok":                      s4ClarifyOK,
-			"missions_ok":                     s4MissionsOK,
-			"routing_replay_ok":               s4RoutingReplayOK,
-			"unknown_recovery_ok":             s4UnknownRecoveryOK,
-			"four_party_allow_ok":             s4FourPartyAllowOK,
+			"narrow_allow_ok":                  s4NarrowAllowOK,
+			"deny_ok":                          s4DenyOK,
+			"defer_ok":                         s4DeferOK,
+			"clarify_ok":                       s4ClarifyOK,
+			"missions_ok":                      s4MissionsOK,
+			"routing_replay_ok":                s4RoutingReplayOK,
+			"unknown_recovery_ok":              s4UnknownRecoveryOK,
+			"four_party_allow_ok":              s4FourPartyAllowOK,
 			"four_party_narrowed_ok":          s4FourPartyNarrowedOK,
 			"four_party_ask_then_as_defer_ok": s4FourPartyAskThenASDeferOK,
-			"host_never_called_ok":            s4HostNeverCalledOK,
+			"host_never_called_ok":             s4HostNeverCalledOK,
 		},
 		"s5": map[string]any{
-			"use_case_1_ok":          s5UseCase1OK,
-			"use_case_2_ok":          s5UseCase2OK,
-			"use_case_3_ok":          s5UseCase3OK,
-			"use_case_4_go_ok":       s5UseCase4GoOK,
-			"narrow_allow_ok":        s5NarrowOK,
-			"deny_ok":                s5DenyOK,
-			"defer_ok":               s5DeferOK,
-			"clarify_ok":             s5ClarifyOK,
-			"missions_ok":            s5MissionsOK,
-			"routing_replay_ok":      s5RoutingReplayOK,
-			"unknown_recovery_ok":    s5UnknownRecoveryOK,
-			"four_party_allow_ok":    s5FourPartyAllowOK,
+			"use_case_1_ok":                s5UseCase1OK,
+			"use_case_2_ok":                s5UseCase2OK,
+			"use_case_3_ok":                s5UseCase3OK,
+			"use_case_4_go_ok":             s5UseCase4GoOK,
+			"narrow_allow_ok":              s5NarrowOK,
+			"deny_ok":                      s5DenyOK,
+			"defer_ok":                     s5DeferOK,
+			"clarify_ok":                   s5ClarifyOK,
+			"missions_ok":                  s5MissionsOK,
+			"routing_replay_ok":            s5RoutingReplayOK,
+			"unknown_recovery_ok":          s5UnknownRecoveryOK,
+			"four_party_allow_ok":          s5FourPartyAllowOK,
 			"four_party_narrowed_ok": s5FourPartyNarrowedOK,
-			"host_never_called_ok":   s5HostNeverCalledOK,
-			"exported_exchange":      s5ExportedEx,
+			"host_never_called_ok":         s5HostNeverCalledOK,
+			"exported_exchange":            s5ExportedEx,
 		},
 		"s6_go_ss": map[string]any{
 			"ss1_issuer":   s6GoSS1Issuer,
