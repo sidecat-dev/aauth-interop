@@ -14,7 +14,6 @@ use http::{Request, Response};
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
-    fs,
     net::SocketAddr,
     path::Path,
     process::Command,

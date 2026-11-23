@@ -177,7 +177,7 @@ Sources: `runner/src/go_sigkey_qa.rs`, `runner/fleet/go_sigkey_suite.go`.
 | QA-M5 | verified working | cached Scheme & AssertionCache Lifecycle (Direct Verify Refusal, Sealed Unpredictable Identifiers, Fleet vs Standalone Resolution, cache_miss vs expired_jwt vs ... |
 | QA-M6 | verified working | Bidirectional Cross-Language cached Scheme, Signature-Key-Cache, cache_miss, & CachingCredential Recovery Over Real HTTPS |
 | QA-M7 | verified working | Multiple Signatures (SignRequests / sign_requests) Covering Complete Signature-Key Dictionary, unsupported_scheme Precedence Over Malformed Scheme Parameters, ... |
-| QA-M8 | verified working | Go Signature-Key geometry, usage guidance and package tests |
+| QA-M8 | verified working | Go Signature-Key algorithms, usage guidance and package tests |
 
 ## N. Rust Metadata, Capabilities, Missions, Budgets & Interaction, with Cross-Language Interop
 
