@@ -3361,7 +3361,7 @@ pub fn run_alpha16_qa_cases(
     let rust_root = crate::rust_source();
     let cargo_toml = fs::read_to_string(rust_root.join("Cargo.toml"))?;
     let readme_md = fs::read_to_string(rust_root.join("README.md"))?;
-    let pkg_readme_md = fs::read_to_string(rust_root.join("PACKAGE-README.md"))?;
+    let pkg_readme_md = crate::read_audit_document(&rust_root.join("PACKAGE-README.md"))?;
     let conf_md = fs::read_to_string(rust_root.join("CONFORMANCE.md"))?;
     let use_md = fs::read_to_string(rust_root.join("USE-IN-YOUR-SERVICE.md"))?;
 
