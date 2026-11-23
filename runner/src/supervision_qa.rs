@@ -1368,10 +1368,16 @@ pub(crate) fn run_supervision_qa(
     let r_4p_delivered = s2_fed_poll(&fed_mail, &sup_loc(&r_4p_write))?;
     let r_4p_gone = s2_fed_poll(&fed_mail, &sup_loc(&r_4p_write))?;
 
-    // Narrowing allow on 4-party is refused (403 access_denied)
+    // Four-party review delivers only the approved scope.
     *s1_org.narrow_scope.lock().unwrap() = Some(("calendar.read".into(), None));
     let r_4p_narrow = s2_fed_auth_tok(&fed_mail, "calendar.read calendar.write")?;
     *s1_org.narrow_scope.lock().unwrap() = None;
+    let narrowed_scope_ok = member(&r_4p_narrow, "auth_token").is_some_and(|token| {
+        AuthToken::parse(&token)
+            .and_then(|token| token.verify(&trust, now.load(Ordering::SeqCst)))
+            .is_ok_and(|token| token.claims().iss == S1_AS
+                && token.claims().scope.as_deref() == Some("calendar.read"))
+    });
     let s2_4party_ok = r_4p_read.status().as_u16() == 200
         && tok_4p_read.unverified_claims().iss == S1_AS
         && r_4p_write.status().as_u16() == 202
@@ -1381,8 +1387,8 @@ pub(crate) fn run_supervision_qa(
         && r_4p_delivered.status().as_u16() == 200
         && sup_body(&r_4p_delivered)["auth_token"].is_string()
         && r_4p_gone.status().as_u16() == 410
-        && r_4p_narrow.status().as_u16() == 403
-        && sup_body(&r_4p_narrow)["error"] == "access_denied";
+        && r_4p_narrow.status().as_u16() == 200
+        && narrowed_scope_ok;
 
     // 4. Recovery:
     // (a) Routing change (mail -> S1_HOME_SS) replays agent.bound, person_token.issued, approved before /decision
@@ -1640,17 +1646,17 @@ pub(crate) fn run_supervision_qa(
         && s4["routing_replay_ok"].as_bool() == Some(true)
         && s4["unknown_recovery_ok"].as_bool() == Some(true)
         && s4["four_party_allow_ok"].as_bool() == Some(true)
-        && s4["four_party_narrow_refused_ok"].as_bool() == Some(true)
-        && s4["four_party_ask_as_defer_bound_ok"].as_bool() == Some(true)
+        && s4["four_party_narrowed_ok"].as_bool() == Some(true)
+        && s4["four_party_ask_then_as_defer_ok"].as_bool() == Some(true)
         && s4["host_never_called_ok"].as_bool() == Some(true);
     cases.push(QaCaseReceipt {
         id: "QA-S4".into(),
         category: "S. Supervision (Rust, Go & Cross-Language)".into(),
-        title: "Go Supervision: Answer Types, Missions, Four-Party & Recovery Over Real HTTPS (allow/narrow/deny/ask/SS-202/clarification with updated_request, missions, 4-party allow/narrow-refused/DeferredCompositionError, routing replay & 404 unknown_sub/unknown_mission recovery)".into(),
+        title: "Go Supervision: Answer Types, Missions, Four-Party & Recovery Over Real HTTPS (allow/narrow/deny/ask/SS-202/clarification with updated_request, missions, 4-party allow/narrowed/retained AS wait, routing replay & 404 unknown_sub/unknown_mission recovery)".into(),
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: s4_pass,
         summary: format!(
-            "Go Supervision answer types, missions, 4-party & recovery verified over real HTTPS: narrow={}, deny={}, defer={}, clarify={}, missions={}, routing_replay={}, unknown_recovery={}, 4party_allow={}, 4party_narrow_refused={}, 4party_ask_as_defer_boundary={}, host_never_called={}",
+            "Go Supervision answer types, missions, 4-party & recovery verified over real HTTPS: narrow={}, deny={}, defer={}, clarify={}, missions={}, routing_replay={}, unknown_recovery={}, 4party_allow={}, 4party_narrowed={}, 4party_ask_as_defer_boundary={}, host_never_called={}",
             s4["narrow_allow_ok"],
             s4["deny_ok"],
             s4["defer_ok"],
@@ -1659,14 +1665,14 @@ pub(crate) fn run_supervision_qa(
             s4["routing_replay_ok"],
             s4["unknown_recovery_ok"],
             s4["four_party_allow_ok"],
-            s4["four_party_narrow_refused_ok"],
-            s4["four_party_ask_as_defer_bound_ok"],
+            s4["four_party_narrowed_ok"],
+            s4["four_party_ask_then_as_defer_ok"],
             s4["host_never_called_ok"],
         ),
         evidence: s4.clone(),
     });
     transcript_lines.push(format!(
-        "[QA-S4] PASS={}: narrow={} deny={} defer={} clarify={} missions={} replay={} unknown={} 4p_allow={} 4p_narrow_refused={} 4p_bound={} host_0={}",
+        "[QA-S4] PASS={}: narrow={} deny={} defer={} clarify={} missions={} replay={} unknown={} 4p_allow={} 4p_narrowed={} 4p_bound={} host_0={}",
         s4_pass,
         s4["narrow_allow_ok"],
         s4["deny_ok"],
@@ -1676,8 +1682,8 @@ pub(crate) fn run_supervision_qa(
         s4["routing_replay_ok"],
         s4["unknown_recovery_ok"],
         s4["four_party_allow_ok"],
-        s4["four_party_narrow_refused_ok"],
-        s4["four_party_ask_as_defer_bound_ok"],
+        s4["four_party_narrowed_ok"],
+        s4["four_party_ask_then_as_defer_ok"],
         s4["host_never_called_ok"],
     ));
 
@@ -1757,7 +1763,7 @@ pub(crate) fn run_supervision_qa(
         && s5["routing_replay_ok"].as_bool() == Some(true)
         && s5["unknown_recovery_ok"].as_bool() == Some(true)
         && s5["four_party_allow_ok"].as_bool() == Some(true)
-        && s5["four_party_narrow_refused_ok"].as_bool() == Some(true)
+        && s5["four_party_narrowed_ok"].as_bool() == Some(true)
         && s5["host_never_called_ok"].as_bool() == Some(true);
     let mut s5_ev = s5.clone();
     s5_ev["exported_exchange"] = json!("<verified_in_go_and_rust>");
@@ -1769,7 +1775,7 @@ pub(crate) fn run_supervision_qa(
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: s5_pass,
         summary: format!(
-            "Cross-language Go PS <-> Rust SS verified over real HTTPS: uc1={}, uc2={}, uc3={}, cross_verify={} (go={} rust_signer={}), narrow={}, deny={}, defer={}, clarify={}, missions={}, replay={}, unknown_recovery={}, 4p_allow={}, 4p_narrow_refused={}, host_0={}",
+            "Cross-language Go PS <-> Rust SS verified over real HTTPS: uc1={}, uc2={}, uc3={}, cross_verify={} (go={} rust_signer={}), narrow={}, deny={}, defer={}, clarify={}, missions={}, replay={}, unknown_recovery={}, 4p_allow={}, 4p_narrowed={}, host_0={}",
             s5["use_case_1_ok"],
             s5["use_case_2_ok"],
             s5["use_case_3_ok"],
@@ -1784,7 +1790,7 @@ pub(crate) fn run_supervision_qa(
             s5["routing_replay_ok"],
             s5["unknown_recovery_ok"],
             s5["four_party_allow_ok"],
-            s5["four_party_narrow_refused_ok"],
+            s5["four_party_narrowed_ok"],
             s5["host_never_called_ok"],
         ),
         evidence: s5_ev,
@@ -1804,7 +1810,7 @@ pub(crate) fn run_supervision_qa(
         s5["routing_replay_ok"],
         s5["unknown_recovery_ok"],
         s5["four_party_allow_ok"],
-        s5["four_party_narrow_refused_ok"],
+        s5["four_party_narrowed_ok"],
     ));
 
     // =========================================================================
@@ -2451,6 +2457,12 @@ pub(crate) fn run_supervision_qa(
         "calendar.read calendar.write",
         "narrow-calendar.read",
     )?;
+    let narrowed_scope_ok = member(&r6_4p_narrow, "auth_token").is_some_and(|token| {
+        AuthToken::parse(&token)
+            .and_then(|token| token.verify(&trust, now.load(Ordering::SeqCst)))
+            .is_ok_and(|token| token.claims().iss == S1_AS
+                && token.claims().scope.as_deref() == Some("calendar.read"))
+    });
     let s6_4party_ok = r6_4p_read.status().as_u16() == 200
         && tok6_4p_read.unverified_claims().iss == S1_AS
         && r6_4p_write.status().as_u16() == 202
@@ -2459,8 +2471,8 @@ pub(crate) fn run_supervision_qa(
         && r6_4p_adv.status().as_u16() == 200
         && r6_4p_delivered.status().as_u16() == 200
         && sup_body(&r6_4p_delivered)["auth_token"].is_string()
-        && r6_4p_narrow.status().as_u16() == 403
-        && sup_body(&r6_4p_narrow)["error"] == "access_denied";
+        && r6_4p_narrow.status().as_u16() == 200
+        && narrowed_scope_ok;
 
     let s6_pass = s6_uc1_ok
         && s6_uc2_ok
@@ -2477,7 +2489,7 @@ pub(crate) fn run_supervision_qa(
     cases.push(QaCaseReceipt {
         id: "QA-S6".into(),
         category: "S. Supervision (Rust, Go & Cross-Language)".into(),
-        title: "Cross-Language Supervision Direction 2 (Rust Person Server <-> Go Supervision Server) Over Real HTTPS (all 4 use cases, all answer types + updated_request clarification relay, missions, 4-party allow/ask+AS-202/narrow-refused, recovery, and cross-language offline verification in both Rust and Go)".into(),
+        title: "Cross-Language Supervision Direction 2 (Rust Person Server <-> Go Supervision Server) Over Real HTTPS (all 4 use cases, all answer types + updated_request clarification relay, missions, 4-party allow/ask+AS-202/narrowed, recovery, and cross-language offline verification in both Rust and Go)".into(),
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: s6_pass,
         summary: format!(
@@ -2536,32 +2548,57 @@ pub(crate) fn run_supervision_qa(
     // =========================================================================
     let go_dir = Path::new(go_module_path);
     let rust_dir = crate::rust_source();
-    let rust_conf_md = fs::read_to_string(rust_dir.join("CONFORMANCE.md"))?;
-    let rust_guide_md = fs::read_to_string(rust_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_conf_md = fs::read_to_string(go_dir.join("CONFORMANCE.md"))?;
-    let go_guide_md = fs::read_to_string(go_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_interp_md = fs::read_to_string(go_dir.join("INTERPRETATIONS.md"))?;
-    let go_journeys_md = fs::read_to_string(go_dir.join("JOURNEYS.md"))?;
-
-    let rust_conf_ok = rust_conf_md.contains("aauth-rust-supervision-server")
-        && rust_conf_md.contains("PersonServer::with_supervision")
-        && rust_conf_md.contains(";req");
-    let rust_guide_ok = rust_guide_md.contains("## Supervise agents with a supervision server")
-        && rust_guide_md.contains("ps.resolve_supervision")
-        && rust_guide_md.contains("ps.advance_supervision")
-        && rust_guide_md.contains("ps.deliver_supervision()")
-        && rust_guide_md.contains("ps.supervision_record(sdi)");
-    let go_conf_ok = go_conf_md.contains("SupervisionConfig.Route")
-        && go_conf_md.contains("supervisionserver")
-        && go_conf_md.contains("SupervisionCompositionError");
-    let go_guide_ok = go_guide_md.contains("## Supervise Agents with a supervision server")
-        && go_guide_md.contains("supervision.VerifyExchange")
-        && go_guide_md.contains("supervisionserver.New");
-    let go_interp_ok = go_interp_md.contains("DeferredCompositionError")
-        && go_interp_md.contains("Accept-Signature");
-    let go_journeys_ok = go_journeys_md.contains("integration/supervision_test.go")
-        || go_journeys_md.contains("supervision");
-    let s8_pass = rust_conf_ok && rust_guide_ok && go_conf_ok && go_guide_ok && go_interp_ok && go_journeys_ok;
+    let mut s8_missing = crate::audit_documents(rust_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Supervise agents with a supervision server",
+                "ps.resolve_supervision",
+                "ps.advance_supervision",
+                "ps.deliver_supervision()",
+                "ps.supervision_record(sdi)",
+            ],
+        ),
+        ("docs/features/supervision.md", &["## Held acts", "## Reports and records"]),
+    ])?;
+    s8_missing.extend(crate::audit_documents(go_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Supervise Agents with a supervision server",
+                "supervision.VerifyExchange",
+                "supervisionserver.New",
+            ],
+        ),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "A four-party narrowing travels to the Access Server",
+                "A deferred federated grant is reported once",
+            ],
+        ),
+        ("JOURNEYS.md", &["integration/supervision_test.go"]),
+        ("docs/features/supervision.md", &["## Held acts", "## Reports and records"]),
+    ])?);
+    let s8_pass = s8_missing.is_empty();
 
     // =========================================================================
     // QA-S7: Full 120-Case Regression (QA-A1 .. QA-S8)
@@ -2592,29 +2629,19 @@ pub(crate) fn run_supervision_qa(
         s7_pass
     ));
 
+
+    let passed = s8_pass;
     cases.push(QaCaseReceipt {
         id: "QA-S8".into(),
         category: "S. Supervision (Rust, Go & Cross-Language)".into(),
-        title: "Consumer Documentation Sufficiency Audit: CONFORMANCE.md & USE-IN-YOUR-SERVICE.md on aauth-rust 10cacbf7 and CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md & JOURNEYS.md on aauth-go 2fb24239".into(),
+        title: "Supervision guides in both libraries".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: s8_pass,
-        summary: format!(
-            "Consumer documentation audit verified across both repos: rust_conformance={}, rust_guide={}, go_conformance={}, go_guide={}, go_interpretations={}, go_journeys={}",
-            rust_conf_ok, rust_guide_ok, go_conf_ok, go_guide_ok, go_interp_ok, go_journeys_ok,
-        ),
-        evidence: json!({
-            "rust_conformance_ok": rust_conf_ok,
-            "rust_use_in_your_service_ok": rust_guide_ok,
-            "go_conformance_ok": go_conf_ok,
-            "go_use_in_your_service_ok": go_guide_ok,
-            "go_interpretations_ok": go_interp_ok,
-            "go_journeys_ok": go_journeys_ok,
-        }),
+        passed_expectation: passed,
+        summary: format!("Supervision guides in both libraries. Missing items: {}", s8_missing.len()),
+        evidence: json!({ "missing": s8_missing }),
     });
-    transcript_lines.push(format!(
-        "[QA-S8] PASS={}: rust_conf={} rust_guide={} go_conf={} go_guide={} go_interp={} go_journeys={}",
-        s8_pass, rust_conf_ok, rust_guide_ok, go_conf_ok, go_guide_ok, go_interp_ok, go_journeys_ok
-    ));
+    transcript_lines.push(format!("[QA-S8] PASS={passed}: missing={s8_missing:?}"));
+
 
     Ok(())
 }

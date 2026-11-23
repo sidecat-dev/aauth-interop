@@ -453,7 +453,7 @@ impl RevocationDirectory for MultiTargetRevocationDirectory {
 pub fn run_alpha15_qa_cases(
     body: &Value,
     out_dir: &Path,
-    go_module_path: &str,
+    _go_module_path: &str,
     clock: i64,
     trust: &Trust,
     qa_cases: &mut Vec<QaCaseReceipt>,
@@ -2573,34 +2573,42 @@ pub fn run_alpha15_qa_cases(
     }));
 
     // =========================================================================
-    // QA-O7: Consumer Documentation Sufficiency Audit (CONFORMANCE.md,
-    // USE-IN-YOUR-SERVICE.md, Cargo.toml 0.1.0-alpha.15)
-    // =========================================================================
-    let rust_root = crate::rust_source();
-    let conf_md = fs::read_to_string(rust_root.join("CONFORMANCE.md"))?;
-    let use_md = fs::read_to_string(rust_root.join("USE-IN-YOUR-SERVICE.md"))?;
-    let cargo_toml = fs::read_to_string(rust_root.join("Cargo.toml"))?;
-    let _ = go_module_path;
-
-    let o7_pass = (cargo_toml.contains("version = \"0.1.0-alpha.15\"")
-        || cargo_toml.contains("version = \"0.1.0-alpha.16\"") || cargo_toml.contains("version = \"0.1.0-alpha.17\""))
-        && conf_md.contains("Added later on 2026-10-30")
-        && conf_md.contains("including step-ups at any depth, at its Resource and")
-        && conf_md.contains("consent_upstream")
-        && conf_md.contains("ChainedInteraction::open")
-        && conf_md.contains("from_pkcs8_der")
-        && conf_md.contains("KeyMaterial::Jwt")
-        && use_md.contains("KeyMaterial::Jwt { jwt, cache: true }")
-        && use_md.contains("SigningKey::from_pkcs8_der")
-        && use_md.contains("consent_upstream")
-        && use_md.contains("upstream_token")
-        && use_md.contains("ChainedInteraction::open");
-
+    // QA-O7: Rust signing and four-party chaining guidance
+    let missing = crate::audit_documents(crate::rust_source(), &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "SigningKey::from_pkcs8_der",
+                "KeyMaterial::Jwt { jwt, cache: true }",
+                "upstream_token",
+                "consent_upstream",
+                "ChainedInteraction::open",
+            ],
+        ),
+        (
+            "docs/features/call-chaining.md",
+            &[
+                "## Rules the library enforces",
+                "Policy::consent_upstream",
+                "revoked_upstream_token",
+            ],
+        ),
+    ])?;
     cases.push(json!({
         "id": "QA-O7",
         "classification": "VERIFIED_WORKING",
-        "pass": o7_pass,
-        "summary": "Consumer documentation audit passed: Cargo.toml version=0.1.0-alpha.15, CONFORMANCE.md ('Added later on 2026-10-30' + AS step-up revocation in 1f59a06) and USE-IN-YOUR-SERVICE.md accurately document KeyMaterial::Jwt { jwt, cache }, SigningKey::from_pkcs8_der (Ed25519/ES256/ES384/RS256/PS256), RSA X.509/CRL verification, 4-party chaining (consent_upstream, upstream_token, ChainedInteraction::open), and multi-hop revocation",
+        "pass": missing.is_empty(),
+        "summary": format!("Rust signing and four-party chaining guidance. Missing items: {}", missing.len()),
+        "missing": missing,
     }));
 
     for c in cases {

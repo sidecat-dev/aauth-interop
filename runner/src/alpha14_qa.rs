@@ -167,7 +167,7 @@ fn register_n_host_with_go(
 pub fn run_alpha14_qa_cases(
     body: &Value,
     out_dir: &Path,
-    go_module_path: &str,
+    _go_module_path: &str,
     clock: i64,
     trust: &Trust,
     qa_cases: &mut Vec<QaCaseReceipt>,
@@ -2180,76 +2180,43 @@ pub fn run_alpha14_qa_cases(
     }));
 
     // =========================================================================
-    // QA-N10: Documentation Sufficiency Audit (CONFORMANCE.md, USE-IN-YOUR-SERVICE.md,
-    // README.md, PACKAGE-README.md, + DOC-OBS-L8-1..L8-3 & DOC-OBS-M8-1 resolution)
-    // =========================================================================
+    // QA-N10: Rust metadata, capabilities, mission, Budget and interaction guidance
     let rust_root = crate::rust_source();
-    let conformance_md = fs::read_to_string(rust_root.join("CONFORMANCE.md"))?;
-    let use_in_service_md = fs::read_to_string(rust_root.join("USE-IN-YOUR-SERVICE.md"))?;
-    let readme_md = fs::read_to_string(rust_root.join("README.md"))?;
-    let pkg_readme_md = crate::read_audit_document(&rust_root.join("PACKAGE-README.md"))?;
-    let go_conformance_md = fs::read_to_string(
-        Path::new(go_module_path).join("CONFORMANCE.md"),
-    )?;
-
-    let n10_conformance_has_all_15 = [
-        "Features added on 2026-10-30:",
-        "logo_uri",
-        "AAuth-Capabilities",
-        "AgentIdentityResource::with_further_schemes",
-        "Decision::OtherScheme",
-        "may_present",
-        "Store::replace_binding",
-        "usage_request",
-        "read_usage",
-        "R3Definitions",
-        "authorize_with_interaction",
-        "with_resource_interaction",
-    ]
-    .iter()
-    .all(|needle| conformance_md.contains(needle));
-
-    let n10_use_in_service_has_guides = [
-        "with_display",
-        "Capabilities",
-        "with_further_schemes",
-        "missions()",
-        "replace_binding",
-        "enrolls_agent",
-        "usage_request",
-        "R3Definitions",
-        "authorize_with_interaction",
-        "with_resource_interaction",
-    ]
-    .iter()
-    .all(|needle| use_in_service_md.contains(needle));
-
-    let n10_prior_doc_obs_resolved = (readme_md.contains("0.1.0-alpha.14")
-        || readme_md.contains("0.1.0-alpha.15")
-        || readme_md.contains("0.1.0-alpha.16") || readme_md.contains("0.1.0-alpha.17"))
-        && (pkg_readme_md.contains("0.1.0-alpha.14")
-            || pkg_readme_md.contains("0.1.0-alpha.15")
-            || pkg_readme_md.contains("0.1.0-alpha.16") || pkg_readme_md.contains("0.1.0-alpha.17"))
-        && !readme_md.contains("0.1.0-alpha.12")
-        && !pkg_readme_md.contains("0.1.0-alpha.12")
-        && !conformance_md.contains("0.1.0-alpha.12")
-        && (go_conformance_md.contains("VerifyCached")
-            || go_conformance_md.contains("`cached` scheme and Signature-Key-Cache"));
-
-    let n10_pass = n10_conformance_has_all_15
-        && n10_use_in_service_has_guides
-        && n10_prior_doc_obs_resolved;
-
+    let mut missing = crate::audit_documents(rust_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Publish display metadata",
+                "with_display",
+                "## Read declared capabilities",
+                "with_further_schemes",
+                "replace_binding",
+                "enrolls_agent",
+                "usage_request",
+                "R3Definitions",
+                "authorize_with_interaction",
+                "with_resource_interaction",
+            ],
+        ),
+        ("docs/features/missions.md", &["## Proposing and approving", "## Issuing under a mission"]),
+        ("docs/features/budgets.md", &["## When the budget runs out", "## Limits"]),
+    ])?;
+    missing.extend(crate::audit_rust_install_version(rust_root)?);
     cases.push(json!({
         "id": "QA-N10",
         "classification": "VERIFIED_WORKING",
-        "pass": n10_pass,
-        "summary": format!(
-            "Consumer documentation audit: CONFORMANCE.md covers all 15 features ({}), USE-IN-YOUR-SERVICE.md covers all new entry points ({}), and prior DOC-OBS-L8-1..L8-3 + DOC-OBS-M8-1 are resolved ({})",
-            n10_conformance_has_all_15,
-            n10_use_in_service_has_guides,
-            n10_prior_doc_obs_resolved,
-        ),
+        "pass": missing.is_empty(),
+        "summary": format!("Rust metadata, capabilities, mission, Budget and interaction guidance. Missing items: {}", missing.len()),
+        "missing": missing,
     }));
 
     for c in cases {

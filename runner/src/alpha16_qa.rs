@@ -472,7 +472,7 @@ impl Policy for QSharedMissionPsPolicy {
 pub fn run_alpha16_qa_cases(
     body: &Value,
     out_dir: &Path,
-    go_module_path: &str,
+    _go_module_path: &str,
     clock: i64,
     trust: &Trust,
     qa_cases: &mut Vec<QaCaseReceipt>,
@@ -3184,8 +3184,11 @@ pub fn run_alpha16_qa_cases(
         && q5_unmetered_poll.headers().get("aauth-budget").is_none()
         && q5_charged_after_unmetered == Q5_RELEASE_COST;
 
-    // 9. Verify a Rust Federated PS (`with_federation` + `with_budgets` + `with_r3`) refuses a proposal `resource_token`
-    //    carrying a budget offer with `400 invalid_resource_token` (`crates/aauth-rust-person-server/src/server/r3.rs:535`)
+    // 9. Confirm the Rust Person Server forwards a budgeted proposal to an AS.
+    // The fixture deliberately supplies no route. Verify its one outbound request
+    // and the safe failure when there is no AS response.
+    let q5_fed = QMultiAsHttpsFederation::default();
+    let q5_access_server = "https://fed-as.example";
     let q5_fed_ps_seq = Arc::new(AtomicUsize::new(0));
     let q5_fed_ps = PersonServer::new(
         PsConfig::new(Q5_RUST_DIRECT_PS, "q5-rust-ps-1", SigningKey::from_seed([0x79; 32])),
@@ -3200,7 +3203,7 @@ pub fn run_alpha16_qa_cases(
             )
         }) as BoxedTokenIds,
     )?
-    .with_federation(DummyFederation)
+    .with_federation(q5_fed.clone())
     .with_budgets(IssuerPolicy::capped(
         500,
         vec![UnitDeclaration::new("USD", 2, "US dollars")?],
@@ -3217,6 +3220,7 @@ pub fn run_alpha16_qa_cases(
         }),
     })?;
     let mut q5_fed_prop_claims = q5_ver_prop_rt.claims().clone();
+    q5_fed_prop_claims.aud = q5_access_server.into();
     q5_fed_prop_claims.presented_jti = PersonToken::parse(&q5_pt)?.unverified_claims().jti.clone();
     q5_fed_prop_claims.jti = "q5-fed-prop-rt-1".into();
     let (q5_fed_prop_rt, _) = mint_budget_proposal_resource_token(
@@ -3237,8 +3241,14 @@ pub fn run_alpha16_qa_cases(
         }))?,
         clock,
     )?);
-    let q5_rust_fed_ps_refusal_ok = q5_rust_fed_ps_refusal.status().as_u16() == 400
-        && member(&q5_rust_fed_ps_refusal, "error").as_deref() == Some("invalid_resource_token");
+    let q5_sent = q5_fed.sent_bodies.lock().unwrap();
+    let q5_rust_fed_ps_relay_ok = q5_sent.as_slice().first().is_some_and(|(uri, body)| {
+        q5_sent.len() == 1
+            && uri == &format!("{q5_access_server}/token")
+            && body["budget"] == json!({"amount": Q5_RELEASE_COST, "unit": "USD", "decimals": 2})
+            && body["presented_token"] == json!(q5_pt)
+    }) && q5_rust_fed_ps_refusal.status().as_u16() == 502
+        && member(&q5_rust_fed_ps_refusal, "error").as_deref() == Some("as_unreachable");
 
     // 10. Cross-language wire check against `aauth-go` main (`445af350`):
     //     (a) Go Direct PS refuses a proposal `resource_token` carrying `budget` with `400 invalid_resource_token`
@@ -3313,7 +3323,7 @@ pub fn run_alpha16_qa_cases(
         && q5_ps_narrowed_ok
         && q5_release_and_replay_ok
         && q5_unmetered_beside_ok
-        && q5_rust_fed_ps_refusal_ok
+        && q5_rust_fed_ps_relay_ok
         && q5_go_direct_ps_refusal_ok
         && q5_go_fed_ps_as_refusal_ok
         && q5_go_res_refusal_ok;
@@ -3322,14 +3332,14 @@ pub fn run_alpha16_qa_cases(
         "classification": "VERIFIED_WORKING",
         "pass": q5_pass,
         "summary": format!(
-            "Metered release of held R3 result (`with_release_metering`, `R3Release::cost`) & cross-language wire check verified: config guards={}, proposal offers cost as budget={}, unfunded 403={}, short budget 403+AAuth-Budget (`required=250`) & stays held={}, 3-party PS narrows budget & release charges once (`200 OK` + `AAuth-Budget`) & replay not charged again={}, unmetered release beside it={}, Rust Fed PS refuses proposal+budget with 400={}, Go Direct PS/Fed PS/Resource refuse per-call budget wire ({}/{}/{})",
+            "Metered release of held R3 result (`with_release_metering`, `R3Release::cost`) & cross-language wire check verified: config guards={}, proposal offers cost as budget={}, unfunded 403={}, short budget 403+AAuth-Budget (`required=250`) & stays held={}, 3-party PS narrows budget & release charges once (`200 OK` + `AAuth-Budget`) & replay not charged again={}, unmetered release beside it={}, Rust Fed PS forwards the release ceiling and refuses unavailable AS={}, Go Direct PS/Fed PS/Resource refuse per-call budget wire ({}/{}/{})",
             q5_config_guards_ok,
             q5_proposal_offer_ok,
             q5_unfunded_refused_ok,
             q5_short_budget_403_ok,
             q5_ps_narrowed_ok && q5_release_and_replay_ok,
             q5_unmetered_beside_ok,
-            q5_rust_fed_ps_refusal_ok,
+            q5_rust_fed_ps_relay_ok,
             q5_go_direct_ps_refusal_ok,
             q5_go_fed_ps_as_refusal_ok,
             q5_go_res_refusal_ok,
@@ -3346,7 +3356,7 @@ pub fn run_alpha16_qa_cases(
             "charged_after_release": q5_charged_after_release,
             "charged_after_replay": q5_charged_after_replay,
             "unmetered_beside_ok": q5_unmetered_beside_ok,
-            "rust_fed_ps_proposal_budget_refusal_ok": q5_rust_fed_ps_refusal_ok,
+            "rust_fed_ps_proposal_budget_relay_ok": q5_rust_fed_ps_relay_ok,
             "go_direct_ps_proposal_budget_refusal_ok": q5_go_direct_ps_refusal_ok,
             "go_fed_ps_as_proposal_budget_refusal_ok": q5_go_fed_ps_as_refusal_ok,
             "go_held_res_per_call_budget_refusal_ok": q5_go_res_refusal_ok,
@@ -3354,94 +3364,41 @@ pub fn run_alpha16_qa_cases(
     }));
 
     // =========================================================================
-    // QA-Q6: Consumer Documentation Sufficiency Audit (Cargo.toml 0.1.0-alpha.16,
-    // CONFORMANCE.md "Added on 2026-10-31", README.md, PACKAGE-README.md,
-    // USE-IN-YOUR-SERVICE.md, DOC-OBS-O7-1 & DOC-OBS-P11-1..3)
-    // =========================================================================
+    // QA-Q6: Rust mission, release and crate installation guidance
     let rust_root = crate::rust_source();
-    let cargo_toml = fs::read_to_string(rust_root.join("Cargo.toml"))?;
-    let readme_md = fs::read_to_string(rust_root.join("README.md"))?;
-    let pkg_readme_md = crate::read_audit_document(&rust_root.join("PACKAGE-README.md"))?;
-    let conf_md = fs::read_to_string(rust_root.join("CONFORMANCE.md"))?;
-    let use_md = fs::read_to_string(rust_root.join("USE-IN-YOUR-SERVICE.md"))?;
-
-    let go_root = Path::new(go_module_path);
-    let go_conf_md = fs::read_to_string(go_root.join("CONFORMANCE.md"))?;
-    let go_interp_md = fs::read_to_string(go_root.join("INTERPRETATIONS.md"))?;
-
-    let q6_version_ok = (cargo_toml.contains("version = \"0.1.0-alpha.16\"")
-        || cargo_toml.contains("version = \"0.1.0-alpha.17\""))
-        && !cargo_toml.contains("0.1.0-alpha.15")
-        && (readme_md.contains("v0.1.0-alpha.16") || readme_md.contains("v0.1.0-alpha.17"))
-        && (readme_md.contains("version = \"0.1.0-alpha.16\"") || readme_md.contains("version = \"0.1.0-alpha.17\""))
-        && (pkg_readme_md.contains("`0.1.0-alpha.16`") || pkg_readme_md.contains("`0.1.0-alpha.17`"));
-
-    let q6_conformance_ok = [
-        "Added on 2026-10-31:",
-        "Four-party missions, chained or not.",
-        "MissionStore::commit_mission_token",
-        "403 mission_terminated",
-        "with_mission_context",
-        "Metered release of a held R3 result. With `with_release_metering`",
-        "R3Release::cost",
-        "API change: `R3Release` gains `cost`.",
-        "missions carried down three- and four-party chains",
-        "Federated (four-party) and upstream mission paths are supported, chained or not",
-    ]
-    .iter()
-    .all(|needle| conf_md.contains(needle));
-
-    let q6_use_md_ok = [
-        "To meter the release of a result rather than the execution, enable budgets and\ncall `with_release_metering` after `with_r3_per_call`.",
-        "R3Release::cost",
-        "aauth_rust_r3::verify_budget_resource_token",
-        "aauth_rust_r3::verify_budget_per_call_auth_token",
-        "Missions work through federation, chained or not.",
-        "MissionStore::commit_mission_token",
-        "with_mission_context",
-        "InvalidR3Profile",
-    ]
-    .iter()
-    .all(|needle| use_md.contains(needle));
-
-    // Verify DOC-OBS-O7-1 (stale "The direct constructor implements immediate, missionless PS authorization..."
-    // paragraph in USE-IN-YOUR-SERVICE.md) is resolved in 0.1.0-alpha.16
-    let q6_doc_obs_o7_1_resolved = !use_md
-        .contains("The direct constructor implements immediate, missionless PS authorization.")
-        && use_md.contains("The direct constructor issues Person and Auth tokens from this PS immediately.\nEverything else is opt-in on the same value.");
-
-    // Verify DOC-OBS-P11-1..3 in aauth-go main (445af350) remain resolved
-    let q6_doc_obs_p11_resolved = !go_conf_md.contains("and the `cached` scheme stays unsupported")
-        && !(go_interp_md
-            .contains("The Access Server keeps no revocation records, so it never answers")
-            && go_interp_md.contains("`revoked_upstream_token`."))
-        && !go_conf_md.contains("Only AP Agent tokens and PS Auth tokens are supported.");
-
-    let q6_pass = q6_version_ok
-        && q6_conformance_ok
-        && q6_use_md_ok
-        && q6_doc_obs_o7_1_resolved
-        && q6_doc_obs_p11_resolved;
-
+    let mut missing = crate::audit_documents(rust_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "with_release_metering",
+                "R3Release::cost",
+                "verify_budget_resource_token",
+                "verify_budget_per_call_auth_token",
+                "Missions work through federation",
+                "MissionStore::commit_mission_token",
+                "with_mission_context",
+                "InvalidR3Profile",
+            ],
+        ),
+        ("docs/features/r3.md", &["## Turning it on", "## Limits", "release"]),
+        ("docs/features/missions.md", &["## Issuing under a mission", "## Limits"]),
+    ])?;
+    missing.extend(crate::audit_rust_install_version(rust_root)?);
     cases.push(json!({
         "id": "QA-Q6",
         "classification": "DEFECT_RESOLVED",
-        "pass": q6_pass,
-        "summary": format!(
-            "Consumer documentation audit passed for aauth-rust 0.1.0-alpha.16 (9961b6cc) & aauth-go main (445af350): Cargo.toml/README/PACKAGE-README version=0.1.0-alpha.16 ({}), CONFORMANCE.md 'Added on 2026-10-31' covers 4-party missions, metered R3 release & breaking API changes ({}), USE-IN-YOUR-SERVICE.md documents with_mission_context/commit_mission_token/with_release_metering/R3Release::cost ({}), DOC-OBS-O7-1 resolved in aauth-rust ({}), and DOC-OBS-P11-1..3 resolved in aauth-go main ({})",
-            q6_version_ok,
-            q6_conformance_ok,
-            q6_use_md_ok,
-            q6_doc_obs_o7_1_resolved,
-            q6_doc_obs_p11_resolved,
-        ),
-        "details": {
-            "version_0_1_0_alpha_16_ok": q6_version_ok,
-            "conformance_added_2026_10_31_ok": q6_conformance_ok,
-            "use_in_your_service_ok": q6_use_md_ok,
-            "doc_obs_o7_1_resolved": q6_doc_obs_o7_1_resolved,
-            "doc_obs_p11_1_to_3_resolved": q6_doc_obs_p11_resolved,
-        },
+        "pass": missing.is_empty(),
+        "summary": format!("Rust mission, release and crate installation guidance. Missing items: {}", missing.len()),
+        "missing": missing,
     }));
 
     for c in cases {

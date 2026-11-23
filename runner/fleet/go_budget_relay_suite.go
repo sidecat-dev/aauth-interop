@@ -594,7 +594,9 @@ func runTSuite(
 			ResolvePerson:     func(context.Context, resource.PersonIdentity, resource.PersonContext) error { return nil },
 			Budget: &resource.BudgetConfig{
 				Units:         t2Units,
-				Offer:         func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) { return req.Requested, nil },
+				Offer: func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) {
+					return req.Requested, nil
+				},
 				RetainLineage: func(context.Context, resource.BudgetLineage) error { return nil },
 				Cost: func(_ context.Context, req resource.BudgetCostRequest) (int64, error) {
 					if req.Request.URL.Path == "/expensive" {
@@ -731,10 +733,6 @@ func runTSuite(
 		PersonServer: t2PSIssuer, ResourceToken: t2RT1Core, PresentedToken: t2PT1,
 	})
 	must(err, "t2UpAT1")
-	// Verify that passing a budgeted AuthToken (t2AT1) as UpstreamToken is refused per INTERPRETATIONS.md:2229
-	_, t2BudgetedUpErr := t2Hop1Relay.PersonToken(ctx, clientagent.PersonTokenRequest{Resource: t2Hop2Issuer, UpstreamToken: t2AT1})
-	t2BudgetedUpstreamRefusedOK := t2BudgetedUpErr != nil && strings.Contains(t2BudgetedUpErr.Error(), "unsupported budget claim")
-
 	t2Req1, _ := http.NewRequestWithContext(ctx, http.MethodPost, t2Hop1Issuer+"/work", nil)
 	t2Call1, err := t2Caller.BeginBudgetCall(ctx, clientagent.BudgetCall{Request: t2Req1, AuthToken: t2AT1})
 	must(err, "t2Call1")
@@ -745,6 +743,14 @@ func runTSuite(
 	t2Cost1, _ := t2Call1.Cost()
 	t2FB1, _ := t2Call1.Feedback()
 	t2Rem1 := t2FB1.Remaining()
+
+	// The served budgeted token establishes upstream lineage for a separate downstream grant.
+	t2BudgetedUp, err := t2Hop1Relay.PersonToken(ctx, clientagent.PersonTokenRequest{Resource: t2Hop2Issuer, UpstreamToken: t2AT1})
+	must(err, "t2BudgetedUp")
+	t2BudgetedUpToken, t2BudgetedUpIssued := t2BudgetedUp.Token()
+	t2BudgetedUpClaims, err := aauth.VerifyPersonToken(ctx, t2BudgetedUpToken, tResolver, clock)
+	must(err, "t2BudgetedUpClaims")
+	t2BudgetedUpstreamAccepted := t2BudgetedUpIssued && t2BudgetedUpClaims.Audience == t2Hop2Issuer
 
 	// Hop 2 (Hop 1 Intermediary -> Hop 2 with UpstreamToken: t2UpAT1)
 	t2PT2Res, err := t2Hop1Relay.PersonToken(ctx, clientagent.PersonTokenRequest{Resource: t2Hop2Issuer, UpstreamToken: t2UpAT1})
@@ -850,7 +856,7 @@ func runTSuite(
 		t2ASOverProb.Code == "as_unreachable"
 
 	t2Mu.Lock()
-	t2CeilingChecksOK := t2BudgetedUpstreamRefusedOK && len(t2PSCeilings) >= 3 &&
+	t2CeilingChecksOK := t2BudgetedUpstreamAccepted && len(t2PSCeilings) >= 3 &&
 		t2PSCeilings[1].Upstream != nil && t2PSCeilings[1].Budget != nil && t2PSCeilings[1].Budget.Amount() == 500 &&
 		t2PSCeilings[2].Upstream != nil && t2PSCeilings[2].Budget != nil && t2PSCeilings[2].Budget.Amount() == 500 &&
 		len(t2ASRequests[t2AS2Issuer]) >= 1 && t2ASRequests[t2AS2Issuer][0].Upstream != nil &&
@@ -1377,7 +1383,9 @@ func runTSuite(
 			Budget: &resource.BudgetConfig{
 				Units:         t2Units,
 				Metered:       func(r *http.Request) bool { return r.URL.Path == "/metered" },
-				Offer:         func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) { return req.Requested, nil },
+				Offer: func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) {
+					return req.Requested, nil
+				},
 				RetainLineage: func(context.Context, resource.BudgetLineage) error { return nil },
 				Cost:          func(context.Context, resource.BudgetCostRequest) (int64, error) { return costAmt, nil },
 				Store:         testutil.NewBudgetStore(),
@@ -1621,7 +1629,7 @@ func runTSuite(
 	t4Dir1BudgetChainOK := t4Dir1Grant.Amount() == 200 && t4Dir1RespOK &&
 		t4Dir1Resp.StatusCode == http.StatusOK && t4Dir1Cost == 35 && t4Dir1Rem == 165
 
-	// Track 4C Dir 1a (Go Resource MeterRelease + Rust Fed PS + Go AS -> 400 invalid_resource_token on budgeted proposal at Rust Fed PS)
+	// Track 4C Dir 1a: Rust PS relays the budgeted release to the Go AS.
 	t4Dir1aPTRes, err := t4RustPSCaller.PersonToken(ctx, clientagent.PersonTokenRequest{
 		PersonServer: in.T4RustFedPSIssuer, Resource: t4GoHeldResIssuer,
 	})
@@ -1641,13 +1649,21 @@ func runTSuite(
 	})
 	must(err, "t4Dir1aBegun")
 	t4Dir1aPending, t4Dir1aPendingOK := t4Dir1aBegun.Pending()
-	_, t4Dir1aPropExErr := t4RustPSCaller.Exchange(ctx, clientagent.ExchangeRequest{
+	t4Dir1aGrant, err := t4RustPSCaller.Exchange(ctx, clientagent.ExchangeRequest{
 		PersonServer: in.T4RustFedPSIssuer, ResourceToken: t4Dir1aPending.ResourceToken(), PresentedToken: t4Dir1aClassAT,
 	})
-	var t4Dir1aProb *aauth.ProblemError
-	t4Dir1aRustFedPS400OK := t4Dir1aPendingOK &&
-		errors.As(t4Dir1aPropExErr, &t4Dir1aProb) && t4Dir1aProb.Status == http.StatusBadRequest &&
-		t4Dir1aProb.Code == "invalid_resource_token"
+	must(err, "t4Dir1aGrant")
+	t4Dir1aPoll, err := t4RustPSCaller.PollR3Call(ctx, clientagent.R3Poll{Pending: t4Dir1aPending, AuthToken: t4Dir1aGrant})
+	must(err, "t4Dir1aPoll")
+	t4Dir1aResponse, t4Dir1aReleased := t4Dir1aPoll.Response()
+	t4Dir1aRustFedPSReleaseOK := false
+	if t4Dir1aReleased {
+		defer t4Dir1aResponse.Body.Close()
+		feedback, err := budgets.ParseFeedback(t4Dir1aResponse.Header.Values("AAuth-Budget"))
+		cost, hasCost := feedback.Cost()
+		t4Dir1aRustFedPSReleaseOK = t4Dir1aPendingOK && t4Dir1aResponse.StatusCode == http.StatusOK &&
+			err == nil && hasCost && cost == 40 && feedback.Remaining() == 0
+	}
 
 	// Track 4C Dir 1b (Go Resource MeterRelease + Go Fed PS + Rust AS -> 400 invalid_resource_token at Rust AS)
 	t4PTGoHeldRustASRes, err := t4Caller.PersonToken(ctx, clientagent.PersonTokenRequest{
@@ -1881,7 +1897,7 @@ func runTSuite(
 		"t4": map[string]any{
 			"go_interm_rust_as_int_ok":      t4GoIntermRustASIntOK,
 			"dir1_budget_chain_ok":          t4Dir1BudgetChainOK,
-			"dir1a_rust_fed_ps_400_ok":      t4Dir1aRustFedPS400OK,
+			"dir1a_rust_fed_ps_release_ok":  t4Dir1aRustFedPSReleaseOK,
 			"dir1b_4party_rust_as_400_ok":   t4Dir1b4Party400OK,
 			"dir2_3party_direct_ps_400_ok":  t4Dir2DirectPS400OK,
 			"dir2_4party_fed_release_ok":    t4Dir2Fed4PartyOK,

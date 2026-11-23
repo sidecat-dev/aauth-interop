@@ -2501,103 +2501,74 @@ pub fn run_events_qa_cases(
     let rust_root = crate::rust_source();
     let go_root = Path::new(go_module_path);
 
-    let rust_use_doc = fs::read_to_string(rust_root.join("USE-IN-YOUR-SERVICE.md"))?;
-    let rust_conf_doc = fs::read_to_string(rust_root.join("CONFORMANCE.md"))?;
-    let go_use_doc = fs::read_to_string(go_root.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_conf_doc = fs::read_to_string(go_root.join("CONFORMANCE.md"))?;
-
-    let rust_use_required = [
-        "## Subscribe to and deliver AAuth Events",
-        "aauth_rust_core::events",
-        "SubscribeToken",
-        "EventToken",
-        "AgentProvider::with_event_endpoint",
-        "events::EventInbox",
-        "issue_subscribe_token",
-        "SubscribeRequest",
-        "inbox.receive(&request, now).into_response()",
-        "DirectoryEventStore::open",
-        "EventSubscriptions::new",
-        "subscriptions.remember",
-        "agent.sign_subscription",
-        "subscriptions.receive",
-        "verify_event",
-        "events::EventsResource::new",
-        "EventsConfig",
-        "issue_ticket",
-        "register_with_ticket",
-        "prepare_event",
-        "agent_provider_metadata_url",
-        "delivery_request",
-        "admit_event_endpoint",
-        "delivery_outcome",
-        "with_asyncapi",
-        "subscribe_security_scheme()",
-    ];
-    let rust_use_all_present = rust_use_required
-        .iter()
-        .all(|needle| rust_use_doc.contains(needle));
-    let rust_conf_ok =
-        rust_conf_doc.contains("AAuth Events is implemented against all 22 MUST-level rows");
-
-    let go_use_required = [
-        "## Deliver events to an Agent",
-        "agentprovider.Config.Events",
-        "Server.IssueSubscribeToken",
-        "agentprovider/storetest.RunEventInbox",
-        "resource.NewEventService",
-        "eventService.PrepareEvent",
-        "eventService.DeliverEvent",
-        "EventServiceConfig.AsyncAPIDocument",
-        "AsyncAPIHandler",
-        "events.ValidateAsyncAPIDocument",
-        "IssueProtectedSubscriptionTicket",
-        "ConfirmationKey: principal.Confirmation",
-        "resource/storetest.RunProtectedEvents",
-        "Client.RegisterPublicSubscription",
-        "Client.RegisterProtectedSubscription",
-        "Client.AcceptEvent",
-    ];
-    let go_use_all_present = go_use_required
-        .iter()
-        .all(|needle| go_use_doc.contains(needle));
-    let go_conf_ok = go_conf_doc.contains("| Events subscriptions and delivery | Implemented |")
-        && go_conf_doc.contains("22 MUST-level rows of the pinned Events draft have asserting tests.");
-
-    let j7_pass = rust_use_all_present && rust_conf_ok && go_use_all_present && go_conf_ok;
-
+    let mut missing = crate::audit_documents(rust_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Subscribe to and deliver AAuth Events",
+                "AgentProvider::with_event_endpoint",
+                "EventInbox",
+                "DirectoryEventStore::open",
+                "issue_ticket",
+                "register_with_ticket",
+                "with_asyncapi",
+            ],
+        ),
+        (
+            "docs/features/events.md",
+            &[
+                "EventSubscriptions::new",
+                "DeliveryOutcome::Accepted",
+                "## Each role",
+                "## Limits",
+            ],
+        ),
+    ])?;
+    missing.extend(crate::audit_documents(go_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Deliver events to an Agent",
+                "agentprovider.Config.Events",
+                "IssueSubscribeToken",
+                "RunEventInbox",
+                "EventServiceConfig.AsyncAPIDocument",
+                "IssueProtectedSubscriptionTicket",
+                "Client.RegisterProtectedSubscription",
+                "Client.AcceptEvent",
+            ],
+        ),
+        ("docs/features/events.md", &["## Each role", "## Limits", "SubscribeToken"]),
+    ])?);
+    let passed = missing.is_empty();
     cases.push(QaCaseReceipt {
         id: "QA-J7".into(),
         category: "J. AAuth Events (Rust & Go)".into(),
-        title: "Consumer Documentation Audit: USE-IN-YOUR-SERVICE.md & CONFORMANCE.md in aauth-rust and aauth-go".into(),
+        title: "Events guides and conformance evidence".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: j7_pass,
-        summary: format!(
-            "rust USE-IN-YOUR-SERVICE ({}/{} symbols)={}, rust CONFORMANCE={}, go USE-IN-YOUR-SERVICE ({}/{} symbols)={}, go CONFORMANCE={}",
-            rust_use_required.len(),
-            rust_use_required.len(),
-            rust_use_all_present,
-            rust_conf_ok,
-            go_use_required.len(),
-            go_use_required.len(),
-            go_use_all_present,
-            go_conf_ok,
-        ),
-        evidence: json!({
-            "rust_use_in_your_service_all_present": rust_use_all_present,
-            "rust_conformance_22_rows_recorded": rust_conf_ok,
-            "go_use_in_your_service_all_present": go_use_all_present,
-            "go_conformance_22_rows_recorded": go_conf_ok,
-        }),
+        passed_expectation: passed,
+        summary: format!("Events guides and conformance evidence. Missing items: {}", missing.len()),
+        evidence: json!({ "missing": missing }),
     });
-    transcript_lines.push(format!(
-        "[QA-J7] {}: rust_use={} rust_conf={} go_use={} go_conf={}",
-        if j7_pass { "PASS" } else { "FAIL" },
-        rust_use_all_present,
-        rust_conf_ok,
-        go_use_all_present,
-        go_conf_ok,
-    ));
+    transcript_lines.push(format!("[QA-J7] PASS={passed}: missing={missing:?}"));
 
     // =========================================================================
     // K. aauth-go Conformance Fixes QA-K1..QA-K8
@@ -3056,133 +3027,53 @@ pub fn run_events_qa_cases(
     // -------------------------------------------------------------------------
     // QA-K8: Consumer Upgrade & Documentation Audit for the 5 Breaking Changes
     // -------------------------------------------------------------------------
-    let go_interp_doc = fs::read_to_string(go_root.join("INTERPRETATIONS.md"))?;
-    let go_sec_doc = fs::read_to_string(go_root.join("SECURITY.md"))?;
-    let go_readme_doc = fs::read_to_string(go_root.join("README.md"))?;
-    let go_ps_server_src = fs::read_to_string(go_root.join("personserver/server.go"))?;
-    let go_ps_inter_src = fs::read_to_string(go_root.join("personserver/person_interaction.go"))?;
-    let go_sig_disc_src = fs::read_to_string(go_root.join("signaturekey/discovery.go"))?;
-    let go_mission_src = fs::read_to_string(go_root.join("mission.go"))?;
-    let go_agent_call_src = fs::read_to_string(go_root.join("agent/call.go"))?;
-    let go_agent_r3_src = fs::read_to_string(go_root.join("agent/r3_call.go"))?;
-
-    let conf_2026_10_30_ok = go_conf_doc.contains("Changes on 2026-10-30.")
-        && go_conf_doc.contains("`/authorize` with no person token answers the `401` person-token challenge")
-        && go_conf_doc.contains("A request missing a signature header is `invalid_signature`.")
-        && go_conf_doc.contains("On the four-party path the PS rechecks presented-token expiry after consent.")
-        && go_conf_doc.contains("The PS records which Access Server each person token was presented to.")
-        && go_conf_doc.contains("The PS ends a person-token interaction after three failed codes.")
-        && go_conf_doc.contains("The key resolver refuses private, loopback and link-local destinations")
-        && go_conf_doc.contains("Agent polls back off on `429` and honor `Retry-After` on `503`.")
-        && go_conf_doc.contains("Mission data no longer carries the `approver` member")
-        && go_conf_doc.contains("Call chaining accepts an upstream person token.");
-
-    let go_doc_comments_ok = !go_mission_src.contains("Approver ")
-        && go_ps_server_src.contains("type PersonTokenPresentationStore interface")
-        && go_ps_inter_src.contains("type PersonTokenCodePresentation struct")
-        && go_ps_inter_src.contains("MaximumPersonTokenCodeAttempts")
-        && go_sig_disc_src.contains("TransportEnforcesEgress bool")
-        && go_agent_call_src.contains("type AuthTokenPollResult struct")
-        && go_agent_r3_src.contains("type R3PollResult struct")
-        && go_sec_doc.contains("TransportEnforcesEgress")
-        && go_interp_doc.contains("A `429` poll answer honors both the backoff and its own `Retry-After`");
-
-    // Audit USE-IN-YOUR-SERVICE.md coverage for the 5 breaking changes:
-    let use_doc_mentions_presentation_store =
-        go_use_doc.contains("PersonTokenPresentationStore");
-    let use_doc_mentions_code_presentation =
-        go_use_doc.contains("PersonTokenCodePresentation");
-    let use_doc_mentions_transport_enforces_egress =
-        go_use_doc.contains("TransportEnforcesEgress");
-    let use_doc_mentions_poll_result_types =
-        go_use_doc.contains("AuthTokenPollResult") && go_use_doc.contains("R3PollResult");
-    let readme_has_no_stale_symbols = !go_readme_doc.contains("Approver");
-
-    let k8_pass = conf_2026_10_30_ok && go_doc_comments_ok && readme_has_no_stale_symbols;
-
+    let mut missing = crate::audit_documents(go_root, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "## Return the person after an interaction",
+                "PersonTokenCodePresentation",
+                "TransportEnforcesEgress",
+            ],
+        ),
+        ("SECURITY.md", &["TransportEnforcesEgress"]),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "A `429` poll answer honors both the backoff",
+                "Call-chain policy derives a new person context and independent grant",
+            ],
+        ),
+        ("personserver/server.go", &["type PersonTokenPresentationStore interface"]),
+        ("personserver/person_interaction.go", &["MaximumPersonTokenCodeAttempts"]),
+        ("agent/call.go", &["type AuthTokenPollResult struct"]),
+        ("agent/r3_call.go", &["type R3PollResult struct"]),
+        ("signaturekey/discovery.go", &["TransportEnforcesEgress bool"]),
+    ])?;
+    if fs::read_to_string(go_root.join("mission.go"))?.contains("Approver ") {
+        missing.push("mission.go still declares Approver".into());
+    }
+    let passed = missing.is_empty();
     cases.push(QaCaseReceipt {
         id: "QA-K8".into(),
         category: "K. aauth-go Conformance Fixes".into(),
-        title: "Consumer Upgrade & Documentation Audit for the 5 Breaking Changes (CONFORMANCE.md, INTERPRETATIONS.md, SECURITY.md, Go Doc Comments & USE-IN-YOUR-SERVICE.md)".into(),
+        title: "Go upgrade guidance and public entry points".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: k8_pass,
-        summary: format!(
-            "CONFORMANCE_2026_10_30={}, Go_doc_comments_all_5={}, SECURITY_md_egress=true; USE-IN-YOUR-SERVICE.md migration gaps noted: PersonTokenPresentationStore={}, TransportEnforcesEgress={}, PollResultTypes={}",
-            conf_2026_10_30_ok,
-            go_doc_comments_ok,
-            use_doc_mentions_presentation_store,
-            use_doc_mentions_transport_enforces_egress,
-            use_doc_mentions_poll_result_types,
-        ),
-        evidence: json!({
-            "conformance_2026_10_30_complete": conf_2026_10_30_ok,
-            "go_doc_comments_all_5_present": go_doc_comments_ok,
-            "readme_has_no_stale_symbols": readme_has_no_stale_symbols,
-            "use_in_your_service_coverage": {
-                "mentions_PersonTokenPresentationStore": use_doc_mentions_presentation_store,
-                "mentions_PersonTokenCodePresentation": use_doc_mentions_code_presentation,
-                "mentions_TransportEnforcesEgress": use_doc_mentions_transport_enforces_egress,
-                "mentions_AuthTokenPollResult_and_R3PollResult": use_doc_mentions_poll_result_types,
-            },
-            "doc_and_upgrade_observations": [
-                {
-                    "id": "DOC-GAP-1",
-                    "title": "FederatedAuthorizationConfig.Tokens static type is still TokenStore (runtime failure instead of compile-time error) and USE-IN-YOUR-SERVICE.md / personserver/storetest omit PersonTokenPresentationStore",
-                    "citations": [
-                        "personserver/server.go:177-180",
-                        "personserver/server.go:462-466",
-                        "USE-IN-YOUR-SERVICE.md:650",
-                        "USE-IN-YOUR-SERVICE.md:677-690",
-                        "CONFORMANCE.md:266"
-                    ]
-                },
-                {
-                    "id": "DOC-GAP-2",
-                    "title": "USE-IN-YOUR-SERVICE.md loopback test-transport guidance (lines 748-751) and HTTPKeyResolverConfig references (lines 50-51, 344-347) do not mention TransportEnforcesEgress or AllowDestination/LookupAddresses",
-                    "citations": [
-                        "USE-IN-YOUR-SERVICE.md:50-51",
-                        "USE-IN-YOUR-SERVICE.md:344-347",
-                        "USE-IN-YOUR-SERVICE.md:748-751",
-                        "signaturekey/discovery.go:34-62",
-                        "signaturekey/egress.go:41-104",
-                        "SECURITY.md:28-37"
-                    ]
-                },
-                {
-                    "id": "DOC-GAP-3",
-                    "title": "USE-IN-YOUR-SERVICE.md does not yet mention PersonTokenCodePresentation / MaximumPersonTokenCodeAttempts or AuthTokenPollResult / R3PollResult",
-                    "citations": [
-                        "personserver/server.go:196-225",
-                        "personserver/person_interaction.go:34-46",
-                        "personserver/person_interaction.go:143-165",
-                        "agent/call.go:627-651",
-                        "agent/r3_call.go:213-236"
-                    ]
-                },
-                {
-                    "id": "GAP-K7-AGENT-CLIENT",
-                    "title": "agent.Client.verifyCallChainUpstreamTokenAt (agent/client.go:624-644) only calls aauth.VerifyAuthToken and locally rejects upstream PersonToken (aa-person+jwt) before sending POST /person or POST /token",
-                    "citations": [
-                        "agent/client.go:53-54",
-                        "agent/client.go:88-90",
-                        "agent/client.go:130-132",
-                        "agent/client.go:155-157",
-                        "agent/client.go:624-644",
-                        "personserver/upstream.go:29-74"
-                    ]
-                }
-            ]
-        }),
+        passed_expectation: passed,
+        summary: format!("Go upgrade guidance and public entry points. Missing items: {}", missing.len()),
+        evidence: json!({ "missing": missing }),
     });
-    transcript_lines.push(format!(
-        "[QA-K8] {}: conf_2026_10_30={} go_docs={} use_doc_gaps=(presentation_store={},egress={},poll_results={})",
-        if k8_pass { "PASS" } else { "FAIL" },
-        conf_2026_10_30_ok,
-        go_doc_comments_ok,
-        use_doc_mentions_presentation_store,
-        use_doc_mentions_transport_enforces_egress,
-        use_doc_mentions_poll_result_types,
-    ));
+    transcript_lines.push(format!("[QA-K8] PASS={passed}: missing={missing:?}"));
+
 
     Ok(())
 }

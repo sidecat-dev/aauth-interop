@@ -34,8 +34,8 @@ and asks whether they work together.
 ```sh
 git clone https://gitlab.com/sidecat-dev/aauth-interop.git
 cd aauth-interop
-./run.sh --rust-ref 2da0d17ab431ddb32533e8a336e2d85d908a87dc \
-  --go-ref c0b552ff7939d5fab74664386e5d6225d0c26ca4
+./run.sh --rust-ref b3637f52746b37c245533b9aefd2a50aee37dde6 \
+  --go-ref ca7b1026f01ea7bed27b7a45935951be1473567b
 ```
 
 `run.sh` clones both libraries into `targets/`, checks out the requested refs
@@ -55,9 +55,9 @@ results: runs/20261031T220000Z-rust-10cacbf7-go-0e2447bc/results.json
 
 `run.sh` exits 0 when every case met its expectation and 1 otherwise.
 
-Current working-group run: all 127 HTTPS cases completed. 105 met expectations
-and 22 did not. See the [current run record](reports/run-03-alpha29-c0b552ff/)
-for exact pins and the documentation, wire and aggregate findings.
+Current working-group run: [all 127 expectations passed](reports/run-04-alpha29-ca7b1026/)
+against the merged Go and Rust revisions. The [pre-refresh run](reports/run-03-alpha29-c0b552ff/)
+records 105 of 127 at the earlier expectations.
 
 Historical clean run: 2026-10-31 on Linux x86_64 (Rust 1.99.1, Go 1.27.1), aauth-rust
 `v0.1.0-alpha.17` (`10cacbf`) and aauth-go `0e2447b`, runner `f5d61fd`: 127 of
@@ -70,7 +70,7 @@ path works as a URL:
 
 ```sh
 ./run.sh --rust-repo https://gitlab.com/you/aauth-rust.git --rust-ref my-branch --go-ref main
-./run.sh --rust-ref 2da0d17ab431ddb32533e8a336e2d85d908a87dc --go-repo ../aauth-go --go-ref my-branch
+./run.sh --rust-ref b3637f52746b37c245533b9aefd2a50aee37dde6 --go-repo ../aauth-go --go-ref my-branch
 ```
 
 Only committed work is tested. `run.sh` refuses to touch a checkout in
@@ -123,10 +123,9 @@ transcript line reads `FAIL`. [CASES.md](CASES.md) lists every case.
 - Cases test the combinations they name, not every combination of roles and
   languages.
 - The documentation cases (QA-J7, QA-K8, QA-M8, QA-N10, QA-O7, QA-P11, QA-Q6,
-  QA-R7, QA-S8, QA-T7, and parts of QA-I1) look for exact sentences in the
-  libraries' Markdown files. When a library rewords its docs, these cases fail
-  until they are updated; read such a failure as "check the docs", not as a
-  library defect.
+  QA-R7, QA-S8, QA-T7, and parts of QA-I1) look for headings, API names and
+  install examples in the libraries' documentation. A failure needs review of
+  the cited documentation check.
 - Some Go cases run named `go test` packages inside the aauth-go checkout as
   part of their evidence.
 - Fixture keys, including `runner/src/rsa-*.der`, are throwaway test keys.

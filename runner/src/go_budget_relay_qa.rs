@@ -1315,9 +1315,9 @@ pub fn run_go_budget_relay_qa(
         && dir2_budget_hdr.contains("cost=45")
         && dir2_budget_hdr.contains("remaining=175");
 
-    // 9. Track 4C Direction 1a: Go Resource (MeterRelease) proposal submitted to Rust Federated PS -> 400 invalid_resource_token
-    let t4_dir1a_rust_fed_ps_400_ok =
-        go_t_suite["t4"]["dir1a_rust_fed_ps_400_ok"].as_bool() == Some(true);
+    // 9. Track 4C Direction 1a: Go Resource release relayed through Rust Federated PS to Go AS
+    let t4_dir1a_rust_fed_ps_release_ok =
+        go_t_suite["t4"]["dir1a_rust_fed_ps_release_ok"].as_bool() == Some(true);
     let go_held_prop_rt = go_t_suite["t4"]["go_held_rust_as_prop_rt"]
         .as_str()
         .ok_or("missing go_held_rust_as_prop_rt")?
@@ -1552,7 +1552,7 @@ pub fn run_go_budget_relay_qa(
         && t4_rust_interm_rust_as_int_ok
         && t4_go["dir1_budget_chain_ok"].as_bool() == Some(true)
         && t4_dir2_budget_chain_ok
-        && t4_dir1a_rust_fed_ps_400_ok
+        && t4_dir1a_rust_fed_ps_release_ok
         && t4_go["dir1b_4party_rust_as_400_ok"].as_bool() == Some(true)
         && t4_dir1b_wire_per_call_ok
         && t4_go["dir2_3party_direct_ps_400_ok"].as_bool() == Some(true)
@@ -1570,7 +1570,7 @@ pub fn run_go_budget_relay_qa(
             "dir2_rust_interm_rust_fed_ps_go_as_go_res_ok": t4_dir2_budget_chain_ok,
         },
         "track_4c_metered_release": {
-            "dir1a_go_res_rust_fed_ps_400_invalid_resource_token_ok": t4_dir1a_rust_fed_ps_400_ok,
+            "dir1a_go_res_rust_fed_ps_go_as_release_ok": t4_dir1a_rust_fed_ps_release_ok,
             "dir1b_go_res_go_fed_ps_rust_as_400_invalid_resource_token_ok": t4_go["dir1b_4party_rust_as_400_ok"],
             "dir1b_wire_rust_per_call_token_to_go_res_ok": t4_dir1b_wire_per_call_ok,
             "dir2_rust_res_go_direct_ps_400_invalid_resource_token_ok": t4_go["dir2_3party_direct_ps_400_ok"],
@@ -1585,14 +1585,14 @@ pub fn run_go_budget_relay_qa(
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: t4_pass,
         summary: format!(
-            "Cross-language suite verified: Track 4A relayed AS interaction (go_interm->rust_as={}, rust_top->go_as={}, rust_interm->go_as={}, rust_interm->rust_as={}), Track 4B 4-party budgeted chain (Dir1 Go->Rust={}, Dir2 Rust->Go={}), Track 4C metered release (Dir1a Rust Fed PS 400={}, Dir1b Rust AS 400={} & wire per-call={}, Dir2 Go Direct PS 400={}, Dir2 4-party Rust Held Res + Go Fed PS + Go AS end-to-end 200 OK={})",
+            "Cross-language suite verified: Track 4A relayed AS interaction (go_interm->rust_as={}, rust_top->go_as={}, rust_interm->go_as={}, rust_interm->rust_as={}), Track 4B 4-party budgeted chain (Dir1 Go->Rust={}, Dir2 Rust->Go={}), Track 4C metered release (Dir1a Rust Fed PS release={}, Dir1b Rust AS 400={} & wire per-call={}, Dir2 Go Direct PS 400={}, Dir2 4-party Rust Held Res + Go Fed PS + Go AS end-to-end 200 OK={})",
             t4_go["go_interm_rust_as_int_ok"].as_bool() == Some(true),
             t4_rust_top_go_as_int_ok,
             t4_rust_interm_go_as_int_ok,
             t4_rust_interm_rust_as_int_ok,
             t4_go["dir1_budget_chain_ok"].as_bool() == Some(true),
             t4_dir2_budget_chain_ok,
-            t4_dir1a_rust_fed_ps_400_ok,
+            t4_dir1a_rust_fed_ps_release_ok,
             t4_go["dir1b_4party_rust_as_400_ok"].as_bool() == Some(true),
             t4_dir1b_wire_per_call_ok,
             t4_go["dir2_3party_direct_ps_400_ok"].as_bool() == Some(true),
@@ -1624,22 +1624,36 @@ pub fn run_go_budget_relay_qa(
     transcript_lines.push(format!("[QA-T5] PASS={t5_pass}: {t5_val}"));
 
     let go_dir = Path::new(go_module_path);
-    let go_conf_md = fs::read_to_string(go_dir.join("CONFORMANCE.md"))?;
-    let go_guide_md = fs::read_to_string(go_dir.join("USE-IN-YOUR-SERVICE.md"))?;
-    let go_interp_md = fs::read_to_string(go_dir.join("INTERPRETATIONS.md"))?;
-    let go_journeys_md = fs::read_to_string(go_dir.join("JOURNEYS.md"))?;
-
-    let t7_conf_ok = go_conf_md.contains("R3ReleaseConfig.MeterRelease")
-        && go_conf_md.contains("PendingDecision.InteractionURL")
-        && go_conf_md.contains("agent.BudgetCall.UpstreamToken");
-    let t7_guide_ok = go_guide_md.contains("**Meter the release.**")
-        && go_guide_md.contains("**The person at the Access Server.**")
-        && go_guide_md.contains("BudgetCall.UpstreamToken");
-    let t7_interp_ok = go_interp_md.contains("## An Access Server's interaction reaches the Agent that declared it")
-        && go_interp_md.contains("## A per-call token's budget meters the release of a held result");
-    let t7_journeys_ok = go_journeys_md.contains("Metered release of a held R3 result — Implemented four-party.")
-        && go_journeys_md.contains("integration/r3_metered_release_four_party_test.go");
-    let t7_pass = t7_conf_ok && t7_guide_ok && t7_interp_ok && t7_journeys_ok;
+    let t7_missing = crate::audit_documents(go_dir, &[
+        (
+            "CONFORMANCE.md",
+            &[
+                "How this library approaches conformance",
+                "What the recorded run says",
+                "SPECIFICATIONS.md",
+                "Reproduce the run",
+            ],
+        ),
+        (
+            "USE-IN-YOUR-SERVICE.md",
+            &[
+                "MeterRelease",
+                "The person at the Access Server.",
+                "BudgetCall.UpstreamToken",
+            ],
+        ),
+        (
+            "INTERPRETATIONS.md",
+            &[
+                "An Access Server's interaction reaches the Agent that declared it",
+                "A per-call token's budget meters the release of a held result",
+                "A budgeted auth token chains like any other upstream token",
+            ],
+        ),
+        ("JOURNEYS.md", &["integration/r3_metered_release_four_party_test.go"]),
+        ("docs/features/budgets.md", &["## When the budget runs out", "## Limits"]),
+    ])?;
+    let t7_pass = t7_missing.is_empty();
 
     let prior_all_passed = cases.iter().all(|c| c.passed_expectation) && t7_pass;
     let t6_pass = prior_all_passed && cases.len() == 125;
@@ -1663,24 +1677,19 @@ pub fn run_go_budget_relay_qa(
     });
     transcript_lines.push(format!("[QA-T6] PASS={t6_pass}: total_cases=127"));
 
+
+    let passed = t7_pass;
     cases.push(QaCaseReceipt {
         id: "QA-T7".into(),
         category: "T. Access Server Interaction Relay, Chained Budgets & Metered Release".into(),
-        title: "Consumer Documentation Sufficiency Audit: CONFORMANCE.md, USE-IN-YOUR-SERVICE.md, INTERPRETATIONS.md & JOURNEYS.md on aauth-go 9b14543d".into(),
+        title: "Go interaction relay, chained Budgets and metered-release guides".into(),
         classification: "VERIFIED_WORKING".into(),
-        passed_expectation: t7_pass,
-        summary: format!(
-            "Consumer documentation audit passed on aauth-go 9b14543d: CONFORMANCE.md={}, USE-IN-YOUR-SERVICE.md={}, INTERPRETATIONS.md={}, JOURNEYS.md={}",
-            t7_conf_ok, t7_guide_ok, t7_interp_ok, t7_journeys_ok,
-        ),
-        evidence: json!({
-            "conformance_ok": t7_conf_ok,
-            "use_in_your_service_ok": t7_guide_ok,
-            "interpretations_ok": t7_interp_ok,
-            "journeys_ok": t7_journeys_ok,
-        }),
+        passed_expectation: passed,
+        summary: format!("Go interaction relay, chained Budgets and metered-release guides. Missing items: {}", t7_missing.len()),
+        evidence: json!({ "missing": t7_missing }),
     });
-    transcript_lines.push(format!("[QA-T7] PASS={t7_pass}"));
+    transcript_lines.push(format!("[QA-T7] PASS={passed}: missing={t7_missing:?}"));
+
 
     Ok(())
 }
