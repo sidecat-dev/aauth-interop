@@ -8,6 +8,7 @@ mod supervision_qa;
 mod go_budget_relay_qa;
 mod go_features_qa;
 mod go_sigkey_qa;
+mod revocation;
 mod tls;
 
 use aauth_rust_access_server::{
@@ -83,6 +84,16 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 /// The aauth-rust checkout this runner was built against; the documentation
 /// audit cases read its Markdown files. Set once in `main`.
 static RUST_SOURCE: OnceLock<PathBuf> = OnceLock::new();
+
+fn read_audit_document(path: &Path) -> Result<String> {
+    match fs::read_to_string(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("documentation audit: missing {}", path.display());
+            Ok(String::new())
+        }
+        result => Ok(result?),
+    }
+}
 
 fn rust_source() -> &'static Path {
     RUST_SOURCE.get().expect("--rust-source is set in main").as_path()

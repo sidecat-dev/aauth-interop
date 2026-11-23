@@ -147,7 +147,7 @@ func runTSuite(
 	})
 	must(err, "t1AP")
 	_, _ = registerTLS("t1-ap.example", t1AP.Handler())
-	t1AgTok, err := t1AP.Issue(aauth.AgentTokenRequest{
+	t1AgTok, err := t1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: t1AgID, PersonServer: t1PSIssuer, PublicKey: t1AgKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "t1AgTok")
@@ -521,7 +521,7 @@ func runTSuite(
 	})
 	must(err, "t2AP")
 	_, _ = registerTLS("t2-ap.example", t2AP.Handler())
-	t2CallerTok, err := t2AP.Issue(aauth.AgentTokenRequest{
+	t2CallerTok, err := t2AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: t2CallerID, PersonServer: t2PSIssuer, PublicKey: t2CallerKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "t2CallerTok")
@@ -902,7 +902,7 @@ func runTSuite(
 	})
 	must(err, "t3AP")
 	_, _ = registerTLS("t3-ap.example", t3AP.Handler())
-	t3AgTok, err := t3AP.Issue(aauth.AgentTokenRequest{
+	t3AgTok, err := t3AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: t3AgID, PersonServer: t3PSIssuer, PublicKey: t3AgKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "t3AgTok")
@@ -1204,11 +1204,11 @@ func runTSuite(
 	})
 	must(err, "t4GoAP")
 	t4GoAPSrv, t4GoAPDER := registerTLS("t4-go-ap.example", t4GoAP.Handler())
-	t4GoCallerTok, err := t4GoAP.Issue(aauth.AgentTokenRequest{
+	t4GoCallerTok, err := t4GoAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: t4GoCallerID, PersonServer: t4GoFedPSIssuer, PublicKey: t4GoCallerKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "t4GoCallerTok")
-	t4GoDirectCallerTok, err := t4GoAP.Issue(aauth.AgentTokenRequest{
+	t4GoDirectCallerTok, err := t4GoAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: t4GoCallerID, PersonServer: t4GoDirectPSIssuer, PublicKey: t4GoCallerKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "t4GoDirectCallerTok")
@@ -1497,7 +1497,7 @@ func runTSuite(
 	t4RegisterWithRustPS(t4GoASIssuer, "t4-go-as.example", t4GoASSrv, t4GoASDER)
 	t4RegisterWithRustPS(t4GoHeldResIssuer, "t4-go-held-res.example", t4GoHeldResSrv, t4GoHeldResDER)
 
-	t4RustPSCallerTok, err := t4GoAP.Issue(aauth.AgentTokenRequest{
+	t4RustPSCallerTok, err := t4GoAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: t4GoCallerID, PersonServer: in.T4RustFedPSIssuer, PublicKey: t4GoCallerKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "t4RustPSCallerTok")

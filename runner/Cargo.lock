@@ -33,11 +33,12 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-access-server"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-budgets",
  "aauth-rust-core",
  "aauth-rust-jose",
+ "aauth-rust-r3",
  "aauth-rust-signature-key",
  "http",
  "httpdate",
@@ -47,8 +48,9 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-agent"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
+ "aauth-rust-budgets",
  "aauth-rust-core",
  "aauth-rust-jose",
  "aauth-rust-r3",
@@ -61,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-agent-provider"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-core",
  "aauth-rust-jose",
@@ -72,7 +74,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-budgets"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-jose",
  "base64",
@@ -85,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-core"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-jose",
  "base64",
@@ -101,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-jose"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -117,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-person-server"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-budgets",
  "aauth-rust-core",
@@ -135,7 +137,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-person-server-redb"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-person-server",
  "redb",
@@ -146,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-r3"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-budgets",
  "aauth-rust-core",
@@ -162,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-resource"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-budgets",
  "aauth-rust-core",
@@ -171,12 +173,13 @@ dependencies = [
  "aauth-rust-signature-key",
  "http",
  "httpdate",
+ "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "aauth-rust-signature-key"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-jose",
  "base64",
@@ -196,7 +199,7 @@ dependencies = [
 
 [[package]]
 name = "aauth-rust-supervision-server"
-version = "0.1.0-alpha.17"
+version = "0.1.0-alpha.29"
 dependencies = [
  "aauth-rust-core",
  "aauth-rust-jose",

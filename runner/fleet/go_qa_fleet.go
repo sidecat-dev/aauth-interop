@@ -2461,7 +2461,7 @@ func main() {
 	hostMap["go-rogue-res.example"] = goRogueResSrv.Listener.Addr().String()
 	hostMu.Unlock()
 
-	goAgentToken, err := goAP.Issue(aauth.AgentTokenRequest{
+	goAgentToken, err := goAP.Issue(context.Background(), aauth.AgentTokenRequest{
 		Agent:        "aauth:clerk@go-ap.example",
 		PersonServer: goPSIssuer,
 		PublicKey:    goAgentKey.PublicJWK(),
@@ -2469,7 +2469,7 @@ func main() {
 	})
 	must(err, "issue go agent token")
 
-	fedAgentToken, err := goAP.Issue(aauth.AgentTokenRequest{
+	fedAgentToken, err := goAP.Issue(context.Background(), aauth.AgentTokenRequest{
 		Agent:        "aauth:federated@go-ap.example",
 		PersonServer: fedPSIssuer,
 		PublicKey:    goAgentKey.PublicJWK(),
@@ -2859,7 +2859,7 @@ func runKSuite(
 	must(err, "k1 res")
 	k1ResSrv, k1ResDER := registerTLS("k1-res.example", k1Res.Handler())
 
-	k1AgentTok, err := k1AP.Issue(aauth.AgentTokenRequest{
+	k1AgentTok, err := k1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k1AgentID, PersonServer: k1PSIssuer, PublicKey: k1AgentKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k1 issue agent token")
@@ -3069,7 +3069,7 @@ func runKSuite(
 	must(err, "k2 ps")
 	registerTLS("k2-ps.example", k2PS.Handler())
 
-	k2AgentTok, err := k1AP.Issue(aauth.AgentTokenRequest{
+	k2AgentTok, err := k1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k1AgentID, PersonServer: k2PSIssuer, PublicKey: k1AgentKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k2 agent tok")
@@ -3224,7 +3224,7 @@ func runKSuite(
 	must(err, "k3 ps")
 	registerTLS("k3-ps.example", k3PS.Handler())
 
-	k3AgentTok, err := k1AP.Issue(aauth.AgentTokenRequest{
+	k3AgentTok, err := k1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k1AgentID, PersonServer: k3PSIssuer, PublicKey: k1AgentKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k3 agent tok")
@@ -3737,7 +3737,7 @@ func runKSuite(
 	registerTLS("k5-direct-res.example", k5DirectRes.Handler())
 
 	k5RotatedKey := newKey("k1-agent-rotated", 0xd2)
-	k5RotatedAgentTok, err := k1AP.Issue(aauth.AgentTokenRequest{
+	k5RotatedAgentTok, err := k1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k1AgentID, PersonServer: k1PSIssuer, PublicKey: k5RotatedKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k5 issue rotated agent tok")
@@ -3834,7 +3834,7 @@ func runKSuite(
 	must(err, "k6 res")
 	registerTLS("k6-res.example", k6Res.Handler())
 
-	k6AgentTok, err := k1AP.Issue(aauth.AgentTokenRequest{
+	k6AgentTok, err := k1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k1AgentID, PersonServer: k6PSIssuer, PublicKey: k1AgentKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k6 agent tok")
@@ -3967,7 +3967,7 @@ func runKSuite(
 	must(err, "k7 res2")
 	registerTLS("k7-res2.example", k7Res2.Handler())
 
-	k7CallerAgentTok, err := k1AP.Issue(aauth.AgentTokenRequest{
+	k7CallerAgentTok, err := k1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k7CallerID, PersonServer: k7PSIssuer, PublicKey: k1AgentKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k7 caller agent tok")
@@ -3987,7 +3987,7 @@ func runKSuite(
 	k7UpstreamPTClaims, err := aauth.VerifyPersonToken(ctx, k7UpstreamPT, resolver, clock)
 	must(err, "verify k7UpstreamPT")
 
-	k7RelayAgentTok, err := k7Res1AP.Issue(aauth.AgentTokenRequest{
+	k7RelayAgentTok, err := k7Res1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: k7RelayID, PersonServer: k7PSIssuer, PublicKey: k7RelayAgentKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "k7 relay agent tok")

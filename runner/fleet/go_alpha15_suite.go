@@ -220,11 +220,11 @@ func runOSuite(
 	must(err, "oFedPS")
 	registerTLS("o-go-fed-ps.example", oFedPS.Handler())
 
-	oCallerAT, err := oAP.Issue(aauth.AgentTokenRequest{
+	oCallerAT, err := oAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: oCallerID, PersonServer: oGoDirPS, PublicKey: oGoCallerKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "oCallerAT")
-	oIntermAT, err := oIntermAP.Issue(aauth.AgentTokenRequest{
+	oIntermAT, err := oIntermAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: oIntermID, PersonServer: oGoDirPS, PublicKey: oGoIntermKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	must(err, "oIntermAT")
@@ -282,7 +282,7 @@ func runOSuite(
 	_ = oCallRustResp.Body.Close()
 
 	// Pinned Boundary 1a: Go Federated PS refuses upstream_token at /person -> 400 invalid_request
-	oFedIntermAT, _ := oIntermAP.Issue(aauth.AgentTokenRequest{
+	oFedIntermAT, _ := oIntermAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent: oIntermID, PersonServer: oGoFedPS, PublicKey: oGoIntermKey.PublicJWK(), Lifetime: time.Hour,
 	})
 	oBound1aStatus, oBound1aOut := doSignedJSON(oGoIntermKey, oFedIntermAT, oGoFedPS+"/person", map[string]string{

@@ -285,7 +285,7 @@ func runQSuite(
 		},
 	})
 	must(err, "personserver.NewFederatedAuthorization q4GoFedPS")
-	q4CallerTok, err := q4AP.Issue(aauth.AgentTokenRequest{
+	q4CallerTok, err := q4AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        q4GoAgentID,
 		PersonServer: q4GoFedPSIssuer,
 		PublicKey:    q4AgentKey.PublicJWK(),
@@ -293,7 +293,7 @@ func runQSuite(
 	})
 	must(err, "q4AP.Issue q4CallerTok")
 
-	q4RelayTok, err := q4RelayAP.Issue(aauth.AgentTokenRequest{
+	q4RelayTok, err := q4RelayAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        q4GoRelayAgentID,
 		PersonServer: q4GoFedPSIssuer,
 		PublicKey:    q4RelayAgKey.PublicJWK(),
@@ -782,7 +782,7 @@ func runQSuite(
 	q5PropURIFedRaw, _ := json.Marshal(in.RustMeteredResIssuer + "/r3/proposals/prop-fed-1")
 	q5PropS256Raw, _ := json.Marshal(q5PropS256)
 
-	q5DirAgentTok, _ := q4AP.Issue(aauth.AgentTokenRequest{
+	q5DirAgentTok, _ := q4AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        q4GoAgentID,
 		PersonServer: q5GoDirectPSIssuer,
 		PublicKey:    q4AgentKey.PublicJWK(),
@@ -836,7 +836,7 @@ func runQSuite(
 	_ = q5DirExResp.Body.Close()
 
 	// 2. Send Rust metered-release proposal ResourceToken (carrying r3_uri, r3_s256, budget) to Go Federated PS -> Go AS (/token)
-	q5FedAgentTok, _ := q4AP.Issue(aauth.AgentTokenRequest{
+	q5FedAgentTok, _ := q4AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        q4GoAgentID,
 		PersonServer: q5GoFedPSIssuer,
 		PublicKey:    q4AgentKey.PublicJWK(),

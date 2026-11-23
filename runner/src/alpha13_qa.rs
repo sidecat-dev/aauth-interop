@@ -3,7 +3,7 @@ use aauth_rust_core::continuation::{
     canonical_interaction_code, is_emitted_interaction_code,
 };
 use aauth_rust_core::interaction::parse_interaction_query;
-use aauth_rust_core::revocation::read_call_outcome;
+use aauth_rust_core::revocation::{RevocationSender, RevocationTarget, read_call_outcome};
 use aauth_rust_core::{CallOutcome, RevocationDirectory};
 use aauth_rust_person_server::{MissionAudit, Store as _};
 use aauth_rust_signature_key::{Error as SigError, PreparedRequest};
@@ -95,7 +95,7 @@ impl ScriptedRevocationDirectory {
     }
 }
 impl RevocationDirectory for ScriptedRevocationDirectory {
-    fn revoke(&self, _recipient: &str, _jti: &str, _exp: i64) -> CallOutcome {
+    fn revoke(&self, _sender: &RevocationSender<'_>, _target: &RevocationTarget<'_>) -> CallOutcome {
         if self.defer_first.swap(false, Ordering::SeqCst) {
             CallOutcome::Deferred
         } else {

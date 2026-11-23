@@ -1,0 +1,684 @@
+{
+  "generated_at_unix": 1795419266,
+  "targets": {
+    "go": {
+      "commit": "c0b552ff7939d5fab74664386e5d6225d0c26ca4",
+      "dirty": false
+    },
+    "runner": {
+      "commit": "8b57b89404abc45d697b476075543528898a1bf9",
+      "dirty": false
+    },
+    "rust": {
+      "commit": "2da0d17ab431ddb32533e8a336e2d85d908a87dc",
+      "dirty": false
+    }
+  },
+  "total_cases": 127,
+  "verified_working_count": 88,
+  "defect_resolved_count": 12,
+  "defect_found_count": 0,
+  "boundary_pinned_count": 5,
+  "failed_count": 22,
+  "failed_ids": [
+    "QA-E2",
+    "QA-J7",
+    "QA-K8",
+    "QA-M1",
+    "QA-M8",
+    "QA-N10",
+    "QA-O7",
+    "QA-P11",
+    "QA-Q5",
+    "QA-Q6",
+    "QA-R6",
+    "QA-R7",
+    "QA-S2",
+    "QA-S4",
+    "QA-S5",
+    "QA-S6",
+    "QA-S7",
+    "QA-S8",
+    "QA-T2",
+    "QA-T4",
+    "QA-T6",
+    "QA-T7"
+  ],
+  "cases": [
+    {
+      "id": "QA-A1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-A2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-A3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-A4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-A5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-B1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-B2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-B3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-C1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-C2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-C3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-C4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-D1",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-D2",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-D3",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-E1",
+      "classification": "BOUNDARY_PINNED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-E2",
+      "classification": "BOUNDARY_PINNED",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-E3",
+      "classification": "BOUNDARY_PINNED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-F1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-F2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-F3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-G1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-G2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-G3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-G4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-G5",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-G6",
+      "classification": "BOUNDARY_PINNED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-H1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-H2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-H3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-H4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-H5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-H6",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-I7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J6",
+      "classification": "BOUNDARY_PINNED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-J7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-K1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K7",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-K8",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-L1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L7",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-L8",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-M2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M4",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-M8",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-N1",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N8",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N9",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-N10",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-O1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-O2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-O3",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-O4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-O5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-O6",
+      "classification": "BOUNDARY_PINNED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-O7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-P1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P8",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P9",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P10",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-P11",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-Q1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-Q2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-Q3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-Q4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-Q5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-Q6",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-R1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-R2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-R3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-R4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-R5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-R6",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-R7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-S1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-S2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-S3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-S4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-S5",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-S6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-S7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-S8",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-T1",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-T2",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-T3",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-T4",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-T5",
+      "classification": "DEFECT_RESOLVED",
+      "passed_expectation": true
+    },
+    {
+      "id": "QA-T6",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    },
+    {
+      "id": "QA-T7",
+      "classification": "VERIFIED_WORKING",
+      "passed_expectation": false
+    }
+  ]
+}

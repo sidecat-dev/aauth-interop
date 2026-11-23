@@ -1,4 +1,6 @@
 use crate::*;
+use crate::revocation::send_revocation;
+use aauth_rust_core::revocation::{RevocationSender, RevocationTarget};
 use aauth_rust_core::capabilities::{Capabilities, Capability};
 use aauth_rust_core::continuation::{MemoryContinuations, PendingResponse};
 use aauth_rust_core::interaction::ChainedInteraction;
@@ -416,7 +418,7 @@ impl Federation for MultiAsHttpsFederation {
 #[derive(Clone, Default)]
 struct MultiTargetRevocationDirectory {
     calls: Arc<Mutex<Vec<(String, String, i64)>>>,
-    routes: Arc<Mutex<BTreeMap<String, (Arc<TlsServer>, String, String, String, [u8; 32], i64)>>>,
+    routes: Arc<Mutex<BTreeMap<String, (Arc<TlsServer>, i64)>>>,
 }
 impl MultiTargetRevocationDirectory {
     fn clear(&self) {
@@ -429,57 +431,21 @@ impl MultiTargetRevocationDirectory {
         &self,
         recipient: &str,
         tls: Arc<TlsServer>,
-        caller_issuer: &str,
-        caller_dwk: &str,
-        caller_kid: &str,
-        caller_seed: [u8; 32],
         clock: i64,
     ) {
-        self.routes.lock().unwrap().insert(
-            recipient.to_owned(),
-            (
-                tls,
-                caller_issuer.to_owned(),
-                caller_dwk.to_owned(),
-                caller_kid.to_owned(),
-                caller_seed,
-                clock,
-            ),
-        );
+        self.routes.lock().unwrap().insert(recipient.to_owned(), (tls, clock));
     }
 }
 impl RevocationDirectory for MultiTargetRevocationDirectory {
-    fn revoke(&self, recipient: &str, jti: &str, exp: i64) -> CallOutcome {
-        self.calls
-            .lock()
-            .unwrap()
-            .push((recipient.to_owned(), jti.to_owned(), exp));
-        let route_opt = self.routes.lock().unwrap().get(recipient).cloned();
-        if let Some((tls, caller_iss, caller_dwk, caller_kid, caller_seed, clk)) = route_opt {
-            let body = json!({"jti": jti, "exp": exp}).to_string().into_bytes();
-            if let Ok(mut req) = Request::builder()
-                .method("POST")
-                .uri(format!("{recipient}/revoke"))
-                .header("content-type", "application/json")
-                .body(body)
-            {
-                if sign_request(
-                    &mut req,
-                    &SigningKey::from_seed(caller_seed),
-                    KeyMaterial::JwksUri {
-                        id: caller_iss,
-                        dwk: caller_dwk,
-                        kid: caller_kid,
-                    },
-                    clk,
-                )
-                .is_ok()
-                {
-                    let _ = tls.send(&req);
-                }
-            }
-        }
-        CallOutcome::Recorded
+    fn revoke(&self, sender: &RevocationSender<'_>, target: &RevocationTarget<'_>) -> CallOutcome {
+        self.calls.lock().unwrap().push((
+            target.recipient.to_owned(), target.jti.to_owned(), target.exp,
+        ));
+        let route = self.routes.lock().unwrap().get(target.recipient).cloned();
+        let Some((route, clock)) = route else {
+            return CallOutcome::Unavailable;
+        };
+        send_revocation(sender, target, clock, |request| route.send(request))
     }
 }
 
@@ -798,10 +764,6 @@ pub fn run_alpha15_qa_cases(
         o_ps_rev_dir.register_https_target(
             rec,
             tls,
-            O_PS,
-            "aauth-person.json",
-            "o-ps-1",
-            [0xcb; 32],
             clock,
         );
     }
@@ -813,20 +775,12 @@ pub fn run_alpha15_qa_cases(
         o_as1_rev_dir.register_https_target(
             rec,
             tls,
-            O_AS_1,
-            "aauth-access.json",
-            "o-as1-1",
-            [0xc5; 32],
             clock,
         );
     }
     o_as2_rev_dir.register_https_target(
         O_RES_3,
         o_res3_tls.clone(),
-        O_AS_2,
-        "aauth-access.json",
-        "o-as2-1",
-        [0xc6; 32],
         clock,
     );
 
@@ -1053,7 +1007,7 @@ pub fn run_alpha15_qa_cases(
         &o1_issuer_key,
     )?;
 
-    let o1_sig_vec: Vec<u8> = o1_holder_key.sign(b"alpha15-sign-vec-u8");
+    let o1_sig_vec: Vec<u8> = o1_holder_key.sign(b"alpha15-sign-vec-u8")?;
     let mut o1_req_no_jti = get_req("https://o1-res.example/data");
     let o1_err_no_jti = sign_request(
         &mut o1_req_no_jti,
@@ -2161,7 +2115,7 @@ pub fn run_alpha15_qa_cases(
         ("PS256", o4_rsa2048_der.as_slice(), 256usize),
     ] {
         let sk = SigningKey::from_pkcs8_der(alg, der)?;
-        let raw_sig = sk.sign(b"alpha15-o4-msg");
+        let raw_sig = sk.sign(b"alpha15-o4-msg")?;
         let jwk = sk.public_jwk();
         let expected_uri = format!("urn:jkt:sha-256:{}", jwk.thumbprint()?);
         let mut req = Request::builder()

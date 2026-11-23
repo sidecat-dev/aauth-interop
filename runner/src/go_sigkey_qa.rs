@@ -161,8 +161,8 @@ fn sign_custom_sigkey_request(
     created: i64,
     schemes: &[&str],
     sig_len: usize,
-    sign_fn: impl FnOnce(&[u8]) -> Vec<u8>,
-) -> Request<Vec<u8>> {
+    sign_fn: impl FnOnce(&[u8]) -> Result<Vec<u8>>,
+) -> Result<Request<Vec<u8>>> {
     let mut req = Request::builder()
         .method("POST")
         .uri(uri)
@@ -178,10 +178,10 @@ fn sign_custom_sigkey_request(
         .unwrap()
         .signature_base()
         .to_vec();
-    let sig = sign_fn(&base);
+    let sig = sign_fn(&base)?;
     req.headers_mut()
         .insert("signature", format!("sig=:{}:", b64_std(&sig)).parse().unwrap());
-    req
+    Ok(req)
 }
 
 fn post_json_ext(
@@ -823,8 +823,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["hwk"],
         64,
-        |base| rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec(),
-    );
+        |base| Ok(rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec()),
+    )?;
 
     // Also sign an ES256 hwk request carrying unknown parameters ;use="sig";custom_vendor="rust-qa"
     let es256_unk_hdr = format!(
@@ -836,8 +836,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["hwk"],
         64,
-        |base| rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec(),
-    );
+        |base| Ok(rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec()),
+    )?;
     // Verify Rust itself also accepts m1_es256_unk_req
     let m1_rust_unk_prep = PreparedRequest::prepare(&m1_es256_unk_req, "sig", clock, 60)?;
     let KeyMaterial::Hwk(ref m1_rust_unk_jwk) = m1_rust_unk_prep.key().clone() else {
@@ -855,8 +855,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["hwk"],
         96,
-        |base| rust_p384_ring.sign(&rng, base).unwrap().as_ref().to_vec(),
-    );
+        |base| Ok(rust_p384_ring.sign(&rng, base).unwrap().as_ref().to_vec()),
+    )?;
 
     let rsa_pair = ring::rsa::KeyPair::from_der(RSA_2048_PKCS1_DER).unwrap();
     let rsa_pub = ring::signature::RsaPublicKeyComponents::<Vec<u8>>::from(rsa_pair.public());
@@ -874,9 +874,9 @@ pub fn run_go_sigkey_qa_cases(
             rsa_pair
                 .sign(&ring::signature::RSA_PKCS1_SHA256, &rng, base, &mut sig)
                 .unwrap();
-            sig
+            Ok(sig)
         },
-    );
+    )?;
     let ps256_hdr = format!(r#"sig=hwk;kty="RSA";n="{rsa_n}";e="{rsa_e}";alg="PS256""#);
     let m1_ps256_req = sign_custom_sigkey_request(
         "https://m-go-sigkey.example/hwk",
@@ -889,9 +889,9 @@ pub fn run_go_sigkey_qa_cases(
             rsa_pair
                 .sign(&ring::signature::RSA_PSS_SHA256, &rng, base, &mut sig)
                 .unwrap();
-            sig
+            Ok(sig)
         },
-    );
+    )?;
 
     let mut m1_rust_to_go_ok = true;
     let mut m1_rust_to_go_map = BTreeMap::new();
@@ -928,8 +928,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["hwk"],
         64,
-        |base| rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec(),
-    );
+        |base| Ok(rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec()),
+    )?;
     let m1_unaccepted_resp = TlsServer::send_external(
         m_go_addr,
         "m-go-sigkey.example",
@@ -1102,8 +1102,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["x509"],
         64,
-        |base| rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec(),
-    );
+        |base| Ok(rust_p256_ring.sign(&rng, base).unwrap().as_ref().to_vec()),
+    )?;
 
     let m3_es384_url = "https://m-rust-x509.example/certs/es384.pem";
     let m3_es384_x5t = b64_std(&sha256_bytes(rust_p384_leaf.der().as_ref()));
@@ -1114,8 +1114,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["x509"],
         96,
-        |base| rust_p384_ring.sign(&rng, base).unwrap().as_ref().to_vec(),
-    );
+        |base| Ok(rust_p384_ring.sign(&rng, base).unwrap().as_ref().to_vec()),
+    )?;
 
     let mut m3_rust_to_go_ok = true;
     let mut m3_rust_to_go_map = BTreeMap::new();
@@ -1335,8 +1335,8 @@ pub fn run_go_sigkey_qa_cases(
         clock,
         &["jwt", "cached"],
         64,
-        |base| m6_holder_key.sign(base).to_vec(),
-    );
+        |base| Ok(m6_holder_key.sign(base)?),
+    )?;
     let m6_r_resp1 =
         TlsServer::send_external(m_go_addr, "m-go-sigkey.example", &m_go_cert, &m6_r_call1)?;
     let m6_r_cache_hdr1 = header_values(&m6_r_resp1, "signature-key-cache")
