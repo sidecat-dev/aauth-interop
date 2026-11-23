@@ -1,10 +1,11 @@
 use crate::*;
+use crate::revocation::send_revocation;
+use aauth_rust_core::revocation::{RevocationSender, RevocationTarget};
 use aauth_rust_core::continuation::MemoryContinuations;
 use aauth_rust_core::{CallOutcome, RevocationDirectory};
 use aauth_rust_jose::SigningKey;
 use aauth_rust_person_server::DeferredConfig as PsDeferredConfig;
 use aauth_rust_resource::{PsAuthorizationConfig, PsAuthorizationResource};
-use aauth_rust_signature_key::{KeyMaterial, sign_request};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64_STD};
 use std::collections::BTreeMap;
 use std::sync::atomic::AtomicBool;
@@ -164,69 +165,33 @@ impl Federation for RMultiAsHttpsFederation {
 #[derive(Clone, Default)]
 struct RMultiTargetRevocationDirectory {
     calls: Arc<Mutex<Vec<(String, String, i64)>>>,
-    routes: Arc<Mutex<BTreeMap<String, (RFedRoute, String, String, String, [u8; 32], i64)>>>,
+    routes: Arc<Mutex<BTreeMap<String, (RFedRoute, i64)>>>,
 }
 impl RMultiTargetRevocationDirectory {
     fn register_target(
         &self,
         recipient: &str,
         route: RFedRoute,
-        caller_issuer: &str,
-        caller_dwk: &str,
-        caller_kid: &str,
-        caller_seed: [u8; 32],
         clock: i64,
     ) {
-        self.routes.lock().unwrap().insert(
-            recipient.to_owned(),
-            (
-                route,
-                caller_issuer.to_owned(),
-                caller_dwk.to_owned(),
-                caller_kid.to_owned(),
-                caller_seed,
-                clock,
-            ),
-        );
+        self.routes.lock().unwrap().insert(recipient.to_owned(), (route, clock));
     }
 }
 impl RevocationDirectory for RMultiTargetRevocationDirectory {
-    fn revoke(&self, recipient: &str, jti: &str, exp: i64) -> CallOutcome {
-        self.calls
-            .lock()
-            .unwrap()
-            .push((recipient.to_owned(), jti.to_owned(), exp));
-        let route_opt = self.routes.lock().unwrap().get(recipient).cloned();
-        if let Some((route, caller_iss, caller_dwk, caller_kid, caller_seed, clk)) = route_opt {
-            let body = json!({"jti": jti, "exp": exp}).to_string().into_bytes();
-            if let Ok(mut req) = Request::builder()
-                .method("POST")
-                .uri(format!("{recipient}/revoke"))
-                .header("content-type", "application/json")
-                .body(body)
-            {
-                if sign_request(
-                    &mut req,
-                    &SigningKey::from_seed(caller_seed),
-                    KeyMaterial::JwksUri {
-                        id: caller_iss,
-                        dwk: caller_dwk,
-                        kid: caller_kid,
-                    },
-                    clk,
-                )
-                .is_ok()
-                {
-                    let _ = match route {
-                        RFedRoute::RustTls(tls) => tls.send(&req),
-                        RFedRoute::GoExt { addr, host, cert } => {
-                            TlsServer::send_external(addr, host, &cert, &req)
-                        }
-                    };
-                }
+    fn revoke(&self, sender: &RevocationSender<'_>, target: &RevocationTarget<'_>) -> CallOutcome {
+        self.calls.lock().unwrap().push((
+            target.recipient.to_owned(), target.jti.to_owned(), target.exp,
+        ));
+        let route = self.routes.lock().unwrap().get(target.recipient).cloned();
+        let Some((route, clock)) = route else {
+            return CallOutcome::Unavailable;
+        };
+        send_revocation(sender, target, clock, |request| match route {
+            RFedRoute::RustTls(tls) => tls.send(request),
+            RFedRoute::GoExt { addr, host, cert } => {
+                TlsServer::send_external(addr, host, &cert, request)
             }
-        }
-        CallOutcome::Recorded
+        })
     }
 }
 
@@ -524,10 +489,6 @@ pub fn run_go_chaining_qa_cases(
     r3_rust_ps_rev_dir.register_target(
         R3_RUST_AS,
         RFedRoute::RustTls(r3_rust_as_tls.clone()),
-        R3_RUST_FED_PS,
-        "aauth-person.json",
-        "r3-rust-ps-1",
-        [0x83; 32],
         clock,
     );
 
@@ -658,19 +619,11 @@ pub fn run_go_chaining_qa_cases(
         r3_rust_ps_rev_dir.register_target(
             issuer,
             RFedRoute::RustTls(tls.clone()),
-            R3_RUST_FED_PS,
-            "aauth-person.json",
-            "r3-rust-ps-1",
-            [0x83; 32],
             clock,
         );
         r3_rust_as_rev_dir.register_target(
             issuer,
             RFedRoute::RustTls(tls.clone()),
-            R3_RUST_AS,
-            "aauth-access.json",
-            "r3-rust-as-1",
-            [0x82; 32],
             clock,
         );
         Ok((ap, tls))
@@ -825,10 +778,6 @@ pub fn run_go_chaining_qa_cases(
             host: "r3-go-as.example",
             cert: r3_go_as_cert.clone(),
         },
-        R3_RUST_FED_PS,
-        "aauth-person.json",
-        "r3-rust-ps-1",
-        [0x83; 32],
         clock,
     );
     for (iss, addr, host, cert) in [
@@ -861,19 +810,11 @@ pub fn run_go_chaining_qa_cases(
         r3_rust_ps_rev_dir.register_target(
             iss,
             route.clone(),
-            R3_RUST_FED_PS,
-            "aauth-person.json",
-            "r3-rust-ps-1",
-            [0x83; 32],
             clock,
         );
         r3_rust_as_rev_dir.register_target(
             iss,
             route,
-            R3_RUST_AS,
-            "aauth-access.json",
-            "r3-rust-as-1",
-            [0x82; 32],
             clock,
         );
     }

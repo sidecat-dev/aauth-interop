@@ -8,6 +8,7 @@ mod supervision_qa;
 mod go_budget_relay_qa;
 mod go_features_qa;
 mod go_sigkey_qa;
+mod revocation;
 mod tls;
 
 use aauth_rust_access_server::{

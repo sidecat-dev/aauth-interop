@@ -253,7 +253,7 @@ func runRSuite(
 	r2CallerAPSrv, _ := registerTLS("r2-caller-ap.example", r2CallerAP.Handler())
 	defer r2CallerAPSrv.Close()
 
-	r2CallerTok1, err := r2CallerAP.Issue(aauth.AgentTokenRequest{
+	r2CallerTok1, err := r2CallerAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        r2CallerAgentID,
 		PersonServer: r2PSIssuer,
 		PublicKey:    r2CallerAgKey.PublicJWK(),
@@ -1157,7 +1157,7 @@ func runRSuite(
 		},
 	})
 	must(err, "r3GoFedPS")
-	r3CallerTok, err := r3GoAP.Issue(aauth.AgentTokenRequest{
+	r3CallerTok, err := r3GoAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        r3GoCallerID,
 		PersonServer: r3GoFedPSIssuer,
 		PublicKey:    r3GoCallerKey.PublicJWK(),
@@ -2304,7 +2304,7 @@ func runRSuite(
 	r5APSrv, _ := registerTLS("r5-ap.example", r5AP.Handler())
 	defer r5APSrv.Close()
 
-	r5AgTok, err := r5AP.Issue(aauth.AgentTokenRequest{
+	r5AgTok, err := r5AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        r5AgentID,
 		PersonServer: r5PSIssuer,
 		PublicKey:    r5AgKey.PublicJWK(),

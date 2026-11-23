@@ -1,4 +1,6 @@
 use crate::*;
+use crate::revocation::send_revocation;
+use aauth_rust_core::revocation::{RevocationSender, RevocationTarget};
 use aauth_rust_budgets::{Budget, IssuerPolicy, UnitDeclaration};
 use aauth_rust_core::continuation::MemoryContinuations;
 use aauth_rust_core::{CallOutcome, ResourceToken, RevocationDirectory};
@@ -330,7 +332,7 @@ impl Federation for QMultiAsHttpsFederation {
 #[derive(Clone, Default)]
 struct QMultiTargetRevocationDirectory {
     calls: Arc<Mutex<Vec<(String, String, i64)>>>,
-    routes: Arc<Mutex<BTreeMap<String, (Arc<TlsServer>, String, String, String, [u8; 32], i64)>>>,
+    routes: Arc<Mutex<BTreeMap<String, (Arc<TlsServer>, i64)>>>,
 }
 impl QMultiTargetRevocationDirectory {
     fn clear(&self) {
@@ -343,57 +345,21 @@ impl QMultiTargetRevocationDirectory {
         &self,
         recipient: &str,
         tls: Arc<TlsServer>,
-        caller_issuer: &str,
-        caller_dwk: &str,
-        caller_kid: &str,
-        caller_seed: [u8; 32],
         clock: i64,
     ) {
-        self.routes.lock().unwrap().insert(
-            recipient.to_owned(),
-            (
-                tls,
-                caller_issuer.to_owned(),
-                caller_dwk.to_owned(),
-                caller_kid.to_owned(),
-                caller_seed,
-                clock,
-            ),
-        );
+        self.routes.lock().unwrap().insert(recipient.to_owned(), (tls, clock));
     }
 }
 impl RevocationDirectory for QMultiTargetRevocationDirectory {
-    fn revoke(&self, recipient: &str, jti: &str, exp: i64) -> CallOutcome {
-        self.calls
-            .lock()
-            .unwrap()
-            .push((recipient.to_owned(), jti.to_owned(), exp));
-        let route_opt = self.routes.lock().unwrap().get(recipient).cloned();
-        if let Some((tls, caller_iss, caller_dwk, caller_kid, caller_seed, clk)) = route_opt {
-            let body = json!({"jti": jti, "exp": exp}).to_string().into_bytes();
-            if let Ok(mut req) = Request::builder()
-                .method("POST")
-                .uri(format!("{recipient}/revoke"))
-                .header("content-type", "application/json")
-                .body(body)
-            {
-                if sign_request(
-                    &mut req,
-                    &SigningKey::from_seed(caller_seed),
-                    KeyMaterial::JwksUri {
-                        id: caller_iss,
-                        dwk: caller_dwk,
-                        kid: caller_kid,
-                    },
-                    clk,
-                )
-                .is_ok()
-                {
-                    let _ = tls.send(&req);
-                }
-            }
-        }
-        CallOutcome::Recorded
+    fn revoke(&self, sender: &RevocationSender<'_>, target: &RevocationTarget<'_>) -> CallOutcome {
+        self.calls.lock().unwrap().push((
+            target.recipient.to_owned(), target.jti.to_owned(), target.exp,
+        ));
+        let route = self.routes.lock().unwrap().get(target.recipient).cloned();
+        let Some((route, clock)) = route else {
+            return CallOutcome::Unavailable;
+        };
+        send_revocation(sender, target, clock, |request| route.send(request))
     }
 }
 
@@ -827,10 +793,6 @@ pub fn run_alpha16_qa_cases(
     q2_ps_rev_dir.register_https_target(
         Q2_AS,
         q2_as_tls.clone(),
-        Q2_PS,
-        "aauth-person.json",
-        "q2-ps-1",
-        [0x63; 32],
         clock,
     );
 
@@ -905,10 +867,6 @@ pub fn run_alpha16_qa_cases(
     q2_as_rev_dir.register_https_target(
         Q2_RES,
         q2_res_tls.clone(),
-        Q2_AS,
-        "aauth-access.json",
-        "q2-as-1",
-        [0x62; 32],
         clock,
     );
     let q2_res_nomiss_seq = Arc::new(AtomicUsize::new(0));
@@ -1587,19 +1545,11 @@ pub fn run_alpha16_qa_cases(
         q2_ps_rev_dir.register_https_target(
             issuer,
             tls.clone(),
-            Q2_PS,
-            "aauth-person.json",
-            "q2-ps-1",
-            [0x63; 32],
             clock,
         );
         q2_as_rev_dir.register_https_target(
             issuer,
             tls.clone(),
-            Q2_AS,
-            "aauth-access.json",
-            "q2-as-1",
-            [0x62; 32],
             clock,
         );
         Ok((ap, tls))

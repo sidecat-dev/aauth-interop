@@ -773,7 +773,7 @@ func runPSuite(
 	})
 	p1Res2Mux.Handle("/", p1Res2.Handler())
 	p1Res2Srv, p1Res2DER := registerTLS("p1-go-res2.example", p1Res2Mux)
-	p1AgentTok, err := p1AP.Issue(aauth.AgentTokenRequest{
+	p1AgentTok, err := p1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        p1GoAgentID,
 		PersonServer: p1GoPSIssuer,
 		PublicKey:    p1AgentKey.PublicJWK(),
@@ -980,7 +980,7 @@ func runPSuite(
 	_ = p1RustCallResp.Body.Close()
 
 	// 5. Cross-language Pairing 3: Go Agent -> Go Resource 2 (NewPersonConsent + InitiatedInteraction) -> Rust Direct PS (with_resource_interaction)
-	p1RustPSAgentTok, err := p1AP.Issue(aauth.AgentTokenRequest{
+	p1RustPSAgentTok, err := p1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        p1GoAgentID,
 		PersonServer: in.RustDirectPSIssuer,
 		PublicKey:    p1AgentKey.PublicJWK(),
@@ -1076,7 +1076,7 @@ func runPSuite(
 	must(err, "agentprovider.New p2RelayProv")
 	_, _ = registerTLS("p2-orders-ap.example", p2RelayProv.Handler())
 
-	p2RelayTok, err := p2RelayProv.Issue(aauth.AgentTokenRequest{
+	p2RelayTok, err := p2RelayProv.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:     p2RelayAgentID,
 		PublicKey: p2RelayKey.PublicJWK(),
 		Lifetime:  time.Hour,
@@ -1248,7 +1248,7 @@ func runPSuite(
 
 	p2MakeCaller := func(name string, k jose.SigningKey) (*clientagent.Client, string) {
 		agID := "aauth:" + name + "@p1-go-ap.example"
-		agTok, iErr := p1AP.Issue(aauth.AgentTokenRequest{
+		agTok, iErr := p1AP.Issue(ctx, aauth.AgentTokenRequest{
 			Agent:        agID,
 			PersonServer: p2PSIssuer,
 			PublicKey:    k.PublicJWK(),
@@ -1824,7 +1824,7 @@ func runPSuite(
 	})
 	_, _ = registerTLS("p5-go-ps.example", p5PSMux)
 
-	p5AgentTok, err := p1AP.Issue(aauth.AgentTokenRequest{
+	p5AgentTok, err := p1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        p1GoAgentID,
 		PersonServer: p5PSIssuer,
 		PublicKey:    p1AgentKey.PublicJWK(),
@@ -1948,7 +1948,7 @@ func runPSuite(
 	p5UpPTClaims, _ := aauth.VerifyPersonToken(ctx, p5UpPT, p5Resolver, p5Clock)
 	// Create a relay agent whose AgentProvider is p5RelayResIssuer
 	p5RelayAgKey := newPKey("p5-relay-ag-1", 0xc2)
-	p5RelayAgTok, _ := p5RelayAP.Issue(aauth.AgentTokenRequest{
+	p5RelayAgTok, _ := p5RelayAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        "aauth:relay@p5-relay-res.example",
 		PersonServer: p5PSIssuer,
 		PublicKey:    p5RelayAgKey.PublicJWK(),
@@ -2586,7 +2586,7 @@ func runPSuite(
 		EventID:  "p8-ev-1",
 		Context:  []byte(`{"waitlist":"10:00"}`),
 	})
-	p8AgTok, _ := p8AP.Issue(aauth.AgentTokenRequest{
+	p8AgTok, _ := p8AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:     p8AgentID,
 		PublicKey: p8AgentKey.PublicJWK(),
 		Lifetime:  time.Hour,
@@ -2964,7 +2964,7 @@ func runPSuite(
 		p10AllGoCallResp.StatusCode == http.StatusOK
 
 	// 2. Cross-Language Flow A: Go Caller -> Go Intermediary -> Go Federated PS (p10GoFedPS) -> Rust Federated AS -> Rust Federated Resource & Go Federated Resource
-	p10CallerTok, _ := p1AP.Issue(aauth.AgentTokenRequest{
+	p10CallerTok, _ := p1AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        p1GoAgentID,
 		PersonServer: p10GoFedPSIssuer,
 		PublicKey:    p1AgentKey.PublicJWK(),
@@ -2978,7 +2978,7 @@ func runPSuite(
 		HTTPClient:  httpClient,
 		Clock:       p5Clock,
 	})
-	p10RelayTok, _ := p5RelayAP.Issue(aauth.AgentTokenRequest{
+	p10RelayTok, _ := p5RelayAP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        "aauth:relay@p5-relay-res.example",
 		PersonServer: p10GoFedPSIssuer,
 		PublicKey:    p5RelayAgKey.PublicJWK(),

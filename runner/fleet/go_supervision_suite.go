@@ -789,7 +789,7 @@ func runSSuite(
 	s3NewAgent := func(local string, seed byte) (*clientagent.Client, string, string) {
 		agID := "aauth:" + local + "@s3-go-ap.example"
 		agKey := newSKey("s3-ag-"+local, seed)
-		tok, iErr := s3AP.Issue(aauth.AgentTokenRequest{
+		tok, iErr := s3AP.Issue(ctx, aauth.AgentTokenRequest{
 			Agent:        agID,
 			PersonServer: s3PSIssuer,
 			PublicKey:    agKey.PublicJWK(),
@@ -1216,7 +1216,7 @@ func runSSuite(
 	registerTLS("s4-go-fed-ps.example", s4FedPS.Handler())
 
 	s4FedAgKey := newSKey("s4-fed-ag", 0xbb)
-	s4FedAgTok, err := s3AP.Issue(aauth.AgentTokenRequest{
+	s4FedAgTok, err := s3AP.Issue(ctx, aauth.AgentTokenRequest{
 		Agent:        "aauth:fed-ag@s3-go-ap.example",
 		PersonServer: s4FedPSIssuer,
 		PublicKey:    s4FedAgKey.PublicJWK(),
@@ -1448,7 +1448,7 @@ func runSSuite(
 	s5NewAgent := func(local string, psIssuer string, seed byte) (*clientagent.Client, string) {
 		agID := "aauth:" + local + "@s3-go-ap.example"
 		agKey := newSKey("s5-ag-"+local, seed)
-		tok, iErr := s3AP.Issue(aauth.AgentTokenRequest{
+		tok, iErr := s3AP.Issue(ctx, aauth.AgentTokenRequest{
 			Agent:        agID,
 			PersonServer: psIssuer,
 			PublicKey:    agKey.PublicJWK(),
