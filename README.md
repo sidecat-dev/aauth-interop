@@ -34,7 +34,8 @@ and asks whether they work together.
 ```sh
 git clone https://gitlab.com/sidecat-dev/aauth-interop.git
 cd aauth-interop
-./run.sh --rust-ref v0.1.0-alpha.17 --go-ref 0e2447b
+./run.sh --rust-ref 2da0d17ab431ddb32533e8a336e2d85d908a87dc \
+  --go-ref c0b552ff7939d5fab74664386e5d6225d0c26ca4
 ```
 
 `run.sh` clones both libraries into `targets/`, checks out the requested refs
@@ -54,7 +55,11 @@ results: runs/20261031T220000Z-rust-10cacbf7-go-0e2447bc/results.json
 
 `run.sh` exits 0 when every case met its expectation and 1 otherwise.
 
-Last run: 2026-10-31 on Linux x86_64 (Rust 1.99.1, Go 1.27.1), aauth-rust
+Current working-group run: all 127 HTTPS cases completed. 105 met expectations
+and 22 did not. See the [current run record](reports/run-03-alpha29-c0b552ff/)
+for exact pins and the documentation, wire and aggregate findings.
+
+Historical clean run: 2026-10-31 on Linux x86_64 (Rust 1.99.1, Go 1.27.1), aauth-rust
 `v0.1.0-alpha.17` (`10cacbf`) and aauth-go `0e2447b`, runner `f5d61fd`: 127 of
 127 cases met their expectation (106 verified working, 15 defect resolved, 6
 boundary pinned). Its `results.json` and transcript are in
@@ -65,7 +70,7 @@ path works as a URL:
 
 ```sh
 ./run.sh --rust-repo https://gitlab.com/you/aauth-rust.git --rust-ref my-branch --go-ref main
-./run.sh --rust-ref v0.1.0-alpha.17 --go-repo ../aauth-go --go-ref my-branch
+./run.sh --rust-ref 2da0d17ab431ddb32533e8a336e2d85d908a87dc --go-repo ../aauth-go --go-ref my-branch
 ```
 
 Only committed work is tested. `run.sh` refuses to touch a checkout in
