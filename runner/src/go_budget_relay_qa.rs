@@ -1315,9 +1315,9 @@ pub fn run_go_budget_relay_qa(
         && dir2_budget_hdr.contains("cost=45")
         && dir2_budget_hdr.contains("remaining=175");
 
-    // 9. Track 4C Direction 1a: Go Resource (MeterRelease) proposal submitted to Rust Federated PS -> 400 invalid_resource_token
-    let t4_dir1a_rust_fed_ps_400_ok =
-        go_t_suite["t4"]["dir1a_rust_fed_ps_400_ok"].as_bool() == Some(true);
+    // 9. Track 4C Direction 1a: Go Resource release relayed through Rust Federated PS to Go AS
+    let t4_dir1a_rust_fed_ps_release_ok =
+        go_t_suite["t4"]["dir1a_rust_fed_ps_release_ok"].as_bool() == Some(true);
     let go_held_prop_rt = go_t_suite["t4"]["go_held_rust_as_prop_rt"]
         .as_str()
         .ok_or("missing go_held_rust_as_prop_rt")?
@@ -1552,7 +1552,7 @@ pub fn run_go_budget_relay_qa(
         && t4_rust_interm_rust_as_int_ok
         && t4_go["dir1_budget_chain_ok"].as_bool() == Some(true)
         && t4_dir2_budget_chain_ok
-        && t4_dir1a_rust_fed_ps_400_ok
+        && t4_dir1a_rust_fed_ps_release_ok
         && t4_go["dir1b_4party_rust_as_400_ok"].as_bool() == Some(true)
         && t4_dir1b_wire_per_call_ok
         && t4_go["dir2_3party_direct_ps_400_ok"].as_bool() == Some(true)
@@ -1570,7 +1570,7 @@ pub fn run_go_budget_relay_qa(
             "dir2_rust_interm_rust_fed_ps_go_as_go_res_ok": t4_dir2_budget_chain_ok,
         },
         "track_4c_metered_release": {
-            "dir1a_go_res_rust_fed_ps_400_invalid_resource_token_ok": t4_dir1a_rust_fed_ps_400_ok,
+            "dir1a_go_res_rust_fed_ps_go_as_release_ok": t4_dir1a_rust_fed_ps_release_ok,
             "dir1b_go_res_go_fed_ps_rust_as_400_invalid_resource_token_ok": t4_go["dir1b_4party_rust_as_400_ok"],
             "dir1b_wire_rust_per_call_token_to_go_res_ok": t4_dir1b_wire_per_call_ok,
             "dir2_rust_res_go_direct_ps_400_invalid_resource_token_ok": t4_go["dir2_3party_direct_ps_400_ok"],
@@ -1585,14 +1585,14 @@ pub fn run_go_budget_relay_qa(
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: t4_pass,
         summary: format!(
-            "Cross-language suite verified: Track 4A relayed AS interaction (go_interm->rust_as={}, rust_top->go_as={}, rust_interm->go_as={}, rust_interm->rust_as={}), Track 4B 4-party budgeted chain (Dir1 Go->Rust={}, Dir2 Rust->Go={}), Track 4C metered release (Dir1a Rust Fed PS 400={}, Dir1b Rust AS 400={} & wire per-call={}, Dir2 Go Direct PS 400={}, Dir2 4-party Rust Held Res + Go Fed PS + Go AS end-to-end 200 OK={})",
+            "Cross-language suite verified: Track 4A relayed AS interaction (go_interm->rust_as={}, rust_top->go_as={}, rust_interm->go_as={}, rust_interm->rust_as={}), Track 4B 4-party budgeted chain (Dir1 Go->Rust={}, Dir2 Rust->Go={}), Track 4C metered release (Dir1a Rust Fed PS release={}, Dir1b Rust AS 400={} & wire per-call={}, Dir2 Go Direct PS 400={}, Dir2 4-party Rust Held Res + Go Fed PS + Go AS end-to-end 200 OK={})",
             t4_go["go_interm_rust_as_int_ok"].as_bool() == Some(true),
             t4_rust_top_go_as_int_ok,
             t4_rust_interm_go_as_int_ok,
             t4_rust_interm_rust_as_int_ok,
             t4_go["dir1_budget_chain_ok"].as_bool() == Some(true),
             t4_dir2_budget_chain_ok,
-            t4_dir1a_rust_fed_ps_400_ok,
+            t4_dir1a_rust_fed_ps_release_ok,
             t4_go["dir1b_4party_rust_as_400_ok"].as_bool() == Some(true),
             t4_dir1b_wire_per_call_ok,
             t4_go["dir2_3party_direct_ps_400_ok"].as_bool() == Some(true),

@@ -593,8 +593,10 @@ func runTSuite(
 			RequiredScopes:    func(*http.Request) []string { return []string{"work.run"} },
 			ResolvePerson:     func(context.Context, resource.PersonIdentity, resource.PersonContext) error { return nil },
 			Budget: &resource.BudgetConfig{
-				Units:         t2Units,
-				Offer:         func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) { return req.Requested, nil },
+				Units: t2Units,
+				Offer: func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) {
+					return req.Requested, nil
+				},
 				RetainLineage: func(context.Context, resource.BudgetLineage) error { return nil },
 				Cost: func(_ context.Context, req resource.BudgetCostRequest) (int64, error) {
 					if req.Request.URL.Path == "/expensive" {
@@ -731,10 +733,6 @@ func runTSuite(
 		PersonServer: t2PSIssuer, ResourceToken: t2RT1Core, PresentedToken: t2PT1,
 	})
 	must(err, "t2UpAT1")
-	// Verify that passing a budgeted AuthToken (t2AT1) as UpstreamToken is refused per INTERPRETATIONS.md:2229
-	_, t2BudgetedUpErr := t2Hop1Relay.PersonToken(ctx, clientagent.PersonTokenRequest{Resource: t2Hop2Issuer, UpstreamToken: t2AT1})
-	t2BudgetedUpstreamRefusedOK := t2BudgetedUpErr != nil && strings.Contains(t2BudgetedUpErr.Error(), "unsupported budget claim")
-
 	t2Req1, _ := http.NewRequestWithContext(ctx, http.MethodPost, t2Hop1Issuer+"/work", nil)
 	t2Call1, err := t2Caller.BeginBudgetCall(ctx, clientagent.BudgetCall{Request: t2Req1, AuthToken: t2AT1})
 	must(err, "t2Call1")
@@ -745,6 +743,14 @@ func runTSuite(
 	t2Cost1, _ := t2Call1.Cost()
 	t2FB1, _ := t2Call1.Feedback()
 	t2Rem1 := t2FB1.Remaining()
+
+	// The served budgeted token establishes upstream lineage for a separate downstream grant.
+	t2BudgetedUp, err := t2Hop1Relay.PersonToken(ctx, clientagent.PersonTokenRequest{Resource: t2Hop2Issuer, UpstreamToken: t2AT1})
+	must(err, "t2BudgetedUp")
+	t2BudgetedUpToken, t2BudgetedUpIssued := t2BudgetedUp.Token()
+	t2BudgetedUpClaims, err := aauth.VerifyPersonToken(ctx, t2BudgetedUpToken, tResolver, clock)
+	must(err, "t2BudgetedUpClaims")
+	t2BudgetedUpstreamAccepted := t2BudgetedUpIssued && t2BudgetedUpClaims.Audience == t2Hop2Issuer
 
 	// Hop 2 (Hop 1 Intermediary -> Hop 2 with UpstreamToken: t2UpAT1)
 	t2PT2Res, err := t2Hop1Relay.PersonToken(ctx, clientagent.PersonTokenRequest{Resource: t2Hop2Issuer, UpstreamToken: t2UpAT1})
@@ -850,7 +856,7 @@ func runTSuite(
 		t2ASOverProb.Code == "as_unreachable"
 
 	t2Mu.Lock()
-	t2CeilingChecksOK := t2BudgetedUpstreamRefusedOK && len(t2PSCeilings) >= 3 &&
+	t2CeilingChecksOK := t2BudgetedUpstreamAccepted && len(t2PSCeilings) >= 3 &&
 		t2PSCeilings[1].Upstream != nil && t2PSCeilings[1].Budget != nil && t2PSCeilings[1].Budget.Amount() == 500 &&
 		t2PSCeilings[2].Upstream != nil && t2PSCeilings[2].Budget != nil && t2PSCeilings[2].Budget.Amount() == 500 &&
 		len(t2ASRequests[t2AS2Issuer]) >= 1 && t2ASRequests[t2AS2Issuer][0].Upstream != nil &&
@@ -1100,7 +1106,7 @@ func runTSuite(
 		Issuer: t3ASIssuer, DWK: aauth.AccessDiscoveryDocument, Audience: t3ResIssuer, JTI: nextTID(),
 		PersonServer: t3PSIssuer, Subject: t3PropRTClaims.Subject, Tenant: t3PropRTClaims.Tenant,
 		Confirmation: aauth.Confirmation{JWK: t3AgKey.PublicJWK()},
-		IssuedAt: clock.Now().Unix(), ExpiresAt: clock.Now().Add(5 * time.Minute).Unix(), Scope: "reports.read",
+		IssuedAt:     clock.Now().Unix(), ExpiresAt: clock.Now().Add(5 * time.Minute).Unix(), Scope: "reports.read",
 	}, t3PropRef, t3PropRec.ExactJSON)
 	must(err, "t3UnfundedAT")
 	_, t3UnfundedCliErr := t3Agent.PollR3Call(ctx, clientagent.R3Poll{Pending: t3Pending, AuthToken: t3UnfundedAT})
@@ -1167,16 +1173,16 @@ func runTSuite(
 	// QA-T4: Cross-Language (aauth-go 9b14543 <-> aauth-rust v0.1.0-alpha.17)
 	// =========================================================================
 	const (
-		t4GoAPIssuer          = "https://t4-go-ap.example"
-		t4GoCallerID          = "aauth:caller@t4-go-ap.example"
-		t4GoIntermIssuer      = "https://t4-go-interm.example"
-		t4GoIntermAgID        = "aauth:relay@t4-go-interm.example"
-		t4GoFedPSIssuer       = "https://t4-go-fed-ps.example"
-		t4GoDirectPSIssuer    = "https://t4-go-direct-ps.example"
-		t4GoASIssuer          = "https://t4-go-as.example"
-		t4GoResIssuer         = "https://t4-go-res.example"
-		t4GoHeldResIssuer     = "https://t4-go-held-res.example"
-		t4GoHeldRustASIssuer  = "https://t4-go-held-rust-as.example"
+		t4GoAPIssuer         = "https://t4-go-ap.example"
+		t4GoCallerID         = "aauth:caller@t4-go-ap.example"
+		t4GoIntermIssuer     = "https://t4-go-interm.example"
+		t4GoIntermAgID       = "aauth:relay@t4-go-interm.example"
+		t4GoFedPSIssuer      = "https://t4-go-fed-ps.example"
+		t4GoDirectPSIssuer   = "https://t4-go-direct-ps.example"
+		t4GoASIssuer         = "https://t4-go-as.example"
+		t4GoResIssuer        = "https://t4-go-res.example"
+		t4GoHeldResIssuer    = "https://t4-go-held-res.example"
+		t4GoHeldRustASIssuer = "https://t4-go-held-rust-as.example"
 	)
 	t4GoAPKey := newTKey("t4-go-ap-1", 0xe8)
 	t4GoCallerKey := newTKey("t4-go-caller-1", 0xe9)
@@ -1375,9 +1381,11 @@ func runTSuite(
 			RequiredScopes:    func(*http.Request) []string { return []string{"records.read"} },
 			ResolvePerson:     func(context.Context, resource.PersonIdentity, resource.PersonContext) error { return nil },
 			Budget: &resource.BudgetConfig{
-				Units:         t2Units,
-				Metered:       func(r *http.Request) bool { return r.URL.Path == "/metered" },
-				Offer:         func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) { return req.Requested, nil },
+				Units:   t2Units,
+				Metered: func(r *http.Request) bool { return r.URL.Path == "/metered" },
+				Offer: func(_ context.Context, req resource.BudgetOfferRequest) (budgets.Value, error) {
+					return req.Requested, nil
+				},
 				RetainLineage: func(context.Context, resource.BudgetLineage) error { return nil },
 				Cost:          func(context.Context, resource.BudgetCostRequest) (int64, error) { return costAmt, nil },
 				Store:         testutil.NewBudgetStore(),
@@ -1439,7 +1447,7 @@ func runTSuite(
 						return resource.R3CallDescription{}, errors.New("not execution")
 					},
 					Release: &resource.R3ReleaseConfig{
-						Eligible: func(context.Context, r3.Invocation) (bool, error) { return true, nil },
+						Eligible:     func(context.Context, r3.Invocation) (bool, error) { return true, nil },
 						MeterRelease: true,
 						DescribeResult: func(context.Context, resource.R3ReleaseRequest) (resource.R3ReleaseDescription, error) {
 							return resource.R3ReleaseDescription{
@@ -1621,7 +1629,7 @@ func runTSuite(
 	t4Dir1BudgetChainOK := t4Dir1Grant.Amount() == 200 && t4Dir1RespOK &&
 		t4Dir1Resp.StatusCode == http.StatusOK && t4Dir1Cost == 35 && t4Dir1Rem == 165
 
-	// Track 4C Dir 1a (Go Resource MeterRelease + Rust Fed PS + Go AS -> 400 invalid_resource_token on budgeted proposal at Rust Fed PS)
+	// Track 4C Dir 1a: Rust PS relays the budgeted release to the Go AS.
 	t4Dir1aPTRes, err := t4RustPSCaller.PersonToken(ctx, clientagent.PersonTokenRequest{
 		PersonServer: in.T4RustFedPSIssuer, Resource: t4GoHeldResIssuer,
 	})
@@ -1641,13 +1649,21 @@ func runTSuite(
 	})
 	must(err, "t4Dir1aBegun")
 	t4Dir1aPending, t4Dir1aPendingOK := t4Dir1aBegun.Pending()
-	_, t4Dir1aPropExErr := t4RustPSCaller.Exchange(ctx, clientagent.ExchangeRequest{
+	t4Dir1aGrant, err := t4RustPSCaller.Exchange(ctx, clientagent.ExchangeRequest{
 		PersonServer: in.T4RustFedPSIssuer, ResourceToken: t4Dir1aPending.ResourceToken(), PresentedToken: t4Dir1aClassAT,
 	})
-	var t4Dir1aProb *aauth.ProblemError
-	t4Dir1aRustFedPS400OK := t4Dir1aPendingOK &&
-		errors.As(t4Dir1aPropExErr, &t4Dir1aProb) && t4Dir1aProb.Status == http.StatusBadRequest &&
-		t4Dir1aProb.Code == "invalid_resource_token"
+	must(err, "t4Dir1aGrant")
+	t4Dir1aPoll, err := t4RustPSCaller.PollR3Call(ctx, clientagent.R3Poll{Pending: t4Dir1aPending, AuthToken: t4Dir1aGrant})
+	must(err, "t4Dir1aPoll")
+	t4Dir1aResponse, t4Dir1aReleased := t4Dir1aPoll.Response()
+	t4Dir1aRustFedPSReleaseOK := false
+	if t4Dir1aReleased {
+		defer t4Dir1aResponse.Body.Close()
+		feedback, err := budgets.ParseFeedback(t4Dir1aResponse.Header.Values("AAuth-Budget"))
+		cost, hasCost := feedback.Cost()
+		t4Dir1aRustFedPSReleaseOK = t4Dir1aPendingOK && t4Dir1aResponse.StatusCode == http.StatusOK &&
+			err == nil && hasCost && cost == 40 && feedback.Remaining() == 0
+	}
 
 	// Track 4C Dir 1b (Go Resource MeterRelease + Go Fed PS + Rust AS -> 400 invalid_resource_token at Rust AS)
 	t4PTGoHeldRustASRes, err := t4Caller.PersonToken(ctx, clientagent.PersonTokenRequest{
@@ -1679,7 +1695,7 @@ func runTSuite(
 		Issuer: in.T4RustASIssuer, DWK: aauth.AccessDiscoveryDocument, Audience: t4GoHeldRustASIssuer, JTI: nextTID(),
 		PersonServer: t4GoFedPSIssuer, Subject: t4ClassClaims.Subject, Tenant: t4ClassClaims.Tenant,
 		Confirmation: aauth.Confirmation{JWK: t4GoCallerKey.PublicJWK()},
-		IssuedAt: clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "reports.read",
+		IssuedAt:     clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "reports.read",
 	}, t4ClassRef, t4ClassDocRec.ExactJSON, t4ClassAuthz)
 	must(err, "MintAuthToken t4ClassATGoHeldRustAS")
 	t4HeldRustASReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, t4GoHeldRustASIssuer+"/reports/q3", nil)
@@ -1729,7 +1745,7 @@ func runTSuite(
 		Issuer: t4GoDirectPSIssuer, DWK: aauth.PersonDiscoveryDocument, Audience: in.T4RustHeldDirectIssuer, JTI: nextTID(),
 		PersonServer: t4GoDirectPSIssuer, Subject: t4DirRTClaims.Subject, Tenant: t4DirRTClaims.Tenant,
 		Confirmation: aauth.Confirmation{JWK: t4GoCallerKey.PublicJWK()},
-		IssuedAt: clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "records.read",
+		IssuedAt:     clock.Now().Unix(), ExpiresAt: clock.Now().Add(30 * time.Minute).Unix(), Scope: "records.read",
 	}, t4DirRTRef, t4DirDocBytes, t4DirAuthz)
 	must(err, "MintAuthToken t4DirPerCallClassAT")
 	// Call Rust Direct Held Resource directly with signed POST /records/metered-query
@@ -1881,7 +1897,7 @@ func runTSuite(
 		"t4": map[string]any{
 			"go_interm_rust_as_int_ok":      t4GoIntermRustASIntOK,
 			"dir1_budget_chain_ok":          t4Dir1BudgetChainOK,
-			"dir1a_rust_fed_ps_400_ok":      t4Dir1aRustFedPS400OK,
+			"dir1a_rust_fed_ps_release_ok":  t4Dir1aRustFedPSReleaseOK,
 			"dir1b_4party_rust_as_400_ok":   t4Dir1b4Party400OK,
 			"dir2_3party_direct_ps_400_ok":  t4Dir2DirectPS400OK,
 			"dir2_4party_fed_release_ok":    t4Dir2Fed4PartyOK,

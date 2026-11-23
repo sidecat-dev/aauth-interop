@@ -2869,7 +2869,8 @@ fn run_qa_suite(
         go_consumed_status, go_consumed_err
     ));
 
-    // QA-E2: Go Resource Connection: close Snapshot Refusal on 401 Retry and 202 Held Routes
+    // QA-E2: A Go Resource holds the request even when the connection closes.
+    let held_close_runs_before = fetch_go_counts(fed_records_addr, &fed_records_cert)?["go_fed_held_runs"].as_i64();
     let held_close_resp = TlsServer::send_external(
         fed_records_addr,
         "fed-records.example",
@@ -2882,27 +2883,38 @@ fn run_qa_suite(
         )?,
     )?;
     let held_close_status = held_close_resp.status().as_u16();
-    let held_close_err = member(&held_close_resp, "error").unwrap_or_default();
+    let held_close_location = held_close_resp
+        .headers()
+        .get("location")
+        .and_then(|header| header.to_str().ok());
+    let held_close_has_requirement = held_close_resp
+        .headers()
+        .get("aauth-requirement")
+        .and_then(|header| header.to_str().ok())
+        .is_some_and(|header| header.contains("auth-token"));
+    let held_close_runs_after = fetch_go_counts(fed_records_addr, &fed_records_cert)?["go_fed_held_runs"].as_i64();
+    let held_close_unexecuted = held_close_runs_before.is_some() && held_close_runs_before == held_close_runs_after;
+    let held_close_ok = held_close_status == 202
+        && held_close_location.is_some_and(|location| !location.is_empty())
+        && held_close_has_requirement
+        && held_close_unexecuted;
 
     cases.push(QaCaseReceipt {
         id: "QA-E2".into(),
-        category: "E. Unbuilt Boundaries ('Still not this result')".into(),
-        title: "Go Resource snapshotHeldRequest Refuses HTTP/1.1 Requests Carrying Connection: close".into(),
-        classification: "BOUNDARY_PINNED".into(),
-        passed_expectation: held_close_status == 500 || held_close_status == 400,
-        summary: format!(
-            "Sending POST /records/held-1 with Connection: close to Go Federated Resource returns {} ({}) because Go resource/held.go snapshotHeldRequest rejects r.Close == true (which also caused fedcall01 400 invalid_request before cf3c81a).",
-            held_close_status, held_close_err
-        ),
+        category: "E. Resource Behavior and Boundaries".into(),
+        title: "Go Resource Holds an HTTP/1.1 Request With Connection: close".into(),
+        classification: "VERIFIED_WORKING".into(),
+        passed_expectation: held_close_ok,
+        summary: format!("Go held request: status={held_close_status}, auth-token requirement={held_close_has_requirement}, handler still idle={held_close_unexecuted}"),
         evidence: json!({
-            "held_with_connection_close_status": held_close_status,
-            "held_with_connection_close_error": held_close_err,
-            "held_with_connection_close_body": String::from_utf8_lossy(held_close_resp.body()),
+            "status": held_close_status,
+            "location_present": held_close_location.is_some_and(|location| !location.is_empty()),
+            "auth_token_requirement": held_close_has_requirement,
+            "handler_unexecuted": held_close_unexecuted,
         }),
     });
     transcript_lines.push(format!(
-        "[QA-E2] BOUNDARY PINNED: Go held with Connection: close status={} ({})",
-        held_close_status, held_close_err
+        "[QA-E2] PASS={held_close_ok}: Go held with Connection: close status={held_close_status}, handler still idle={held_close_unexecuted}"
     ));
 
     // QA-E3: Held Release Reuse vs Fresh Bytes (query-runs=2 and fresh bytes under a still-live recorded approval)

@@ -224,8 +224,8 @@ func newSGoSSHost(
 						exp := clock.Now().Unix() + 900
 						return supervisionserver.DecisionResult{
 							Decision: &supervision.Decision{
-								Verdict: supervision.VerdictAllow,
-								Scope:   scope,
+								Verdict:   supervision.VerdictAllow,
+								Scope:     scope,
 								ExpiresAt: exp,
 							},
 						}, nil
@@ -433,11 +433,11 @@ func (h *sGoSSHost) handleQACtl(w http.ResponseWriter, r *http.Request) {
 		mutReq.Request.Header.Set("Content-Digest", "sha-256=:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=:")
 		_, mutReqErr := supervision.VerifyExchange(r.Context(), mutReq, h.resolver)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":               dErr == nil,
-			"signer":           verified.Signer(),
-			"verify_decision":  dErr == nil,
-			"mut_resp_failed":  mutRespErr != nil,
-			"mut_req_failed":   mutReqErr != nil,
+			"ok":              dErr == nil,
+			"signer":          verified.Signer(),
+			"verify_decision": dErr == nil,
+			"mut_resp_failed": mutRespErr != nil,
+			"mut_req_failed":  mutReqErr != nil,
 		})
 	default:
 		http.Error(w, "unknown action", http.StatusBadRequest)
@@ -1248,18 +1248,21 @@ func runSSuite(
 	must(err, "VerifyAuthToken s4FedAT1")
 	s4FourPartyAllowOK := s4FedClaims1.Issuer == s4ASIssuer
 
-	// Narrowing allow on 4-party is refused (403)
+	// The four-party grant contains only the approved scope.
 	s4FedRT2, err := s4FedAg.Authorize(ctx, clientagent.AuthorizeRequest{
 		Resource: s4FedResIssuer, PersonToken: s4FedPT, Scopes: []string{"records.read", "records.write"},
 	})
 	must(err, "s4FedAg.Authorize 2")
 	s3OrgSS.setAuthMode("narrow")
-	_, s4FedNarrowErr := s4FedAg.Exchange(ctx, clientagent.ExchangeRequest{
+	s4FedNarrowToken, s4FedNarrowErr := s4FedAg.Exchange(ctx, clientagent.ExchangeRequest{
 		PersonServer: s4FedPSIssuer, ResourceToken: s4FedRT2, PresentedToken: s4FedPT,
 	})
 	s3OrgSS.setAuthMode("")
-	var s4FedNarrowProb *aauth.ProblemError
-	s4FourPartyNarrowRefusedOK := errors.As(s4FedNarrowErr, &s4FedNarrowProb) && s4FedNarrowProb.Status == 403
+	s4FourPartyNarrowedOK := false
+	if s4FedNarrowErr == nil {
+		claims, err := aauth.VerifyAuthToken(ctx, s4FedNarrowToken, sResolver, clock)
+		s4FourPartyNarrowedOK = err == nil && claims.Issuer == s4ASIssuer && claims.Scope == "records.read"
+	}
 
 	// Immediate SS allow + AS 202 deferral -> AdvanceFederation -> 200 OK
 	s4ASDefer.Store(true)
@@ -1281,7 +1284,7 @@ func runSSuite(
 	must(err, "s4FedAg.PollExchange AS defer")
 	s4FedDefTok, s4FedDefTokOK := s4FedDefPolled.Token()
 
-	// Deferred SS ask + AS 202 deferral -> DeferredCompositionError{Reason: "supervision"}
+	// The same pending request survives the person review and the AS wait.
 	s4ASDefer.Store(true)
 	s3OrgSS.setAuthMode("ask")
 	s4FedRT4, err := s4FedAg.Authorize(ctx, clientagent.AuthorizeRequest{
@@ -1294,19 +1297,30 @@ func runSSuite(
 	s3OrgSS.setAuthMode("")
 	must(err, "s4FedAg.BeginExchange ask+AS defer")
 	s4FedAskASPend, s4FedAskASWasPend := s4FedAskASEx.Pending()
-	s4FedAskRevs, _ := s4FedPS.PendingSupervision(ctx, 10)
-	if len(s4FedAskRevs) > 0 {
-		_ = s4FedPS.ResolveSupervision(ctx, s4FedAskRevs[0].Reference, personserver.SupervisionAnswer{
+	s4FourPartyAskThenASDeferOK := false
+	if s4FedAskASWasPend {
+		reference := path.Base(s4FedAskASPend.Location())
+		resolveErr := s4FedPS.ResolveSupervision(ctx, reference, personserver.SupervisionAnswer{
 			Answer: supervision.AnswerAllow,
 		})
+		sAdvanceClock(5 * time.Second)
+		wait, pollErr := s4FedAg.PollExchange(ctx, s4FedAskASPend)
+		again, pending := wait.Pending()
+		s4ASDefer.Store(false)
+		if resolveErr == nil && pollErr == nil && pending && again.Location() == s4FedAskASPend.Location() {
+			advanceErr := s4FedPS.AdvanceFederation(ctx, reference)
+			sAdvanceClock(5 * time.Second)
+			delivery, deliveryErr := s4FedAg.PollExchange(ctx, again)
+			if token, terminal := delivery.Token(); advanceErr == nil && deliveryErr == nil && terminal {
+				claims, err := aauth.VerifyAuthToken(ctx, token, sResolver, clock)
+				s4FourPartyAskThenASDeferOK = err == nil && claims.Issuer == s4ASIssuer &&
+					claims.Scope == "records.read records.write"
+			}
+		}
 	}
-	sAdvanceClock(5 * time.Second)
-	_, s4AskASPollErr := s4FedAg.PollExchange(ctx, s4FedAskASPend)
 	s4ASDefer.Store(false)
-	var s4AskASProb *aauth.ProblemError
-	s4FourPartyAskASDeferBoundaryOK := s4FedDefWasPend && s4FedDefTokOK && s4FedDefTok != "" &&
-		s4FedAskASWasPend && errors.As(s4AskASPollErr, &s4AskASProb) && s4AskASProb.Status == 500 &&
-		s4AskASProb.Code == "server_error"
+	s4FourPartyAskThenASDeferOK = s4FedDefWasPend && s4FedDefTokOK && s4FedDefTok != "" &&
+		s4FourPartyAskThenASDeferOK
 
 	s4HostNeverCalledOK := s3HostPolicyCalls.Load() == 0
 
@@ -1690,7 +1704,7 @@ func runSSuite(
 	s5Ctl(in.S5RustSS2Issuer, map[string]any{"action": "set_clarify", "clarify": false})
 	s5ClarTok, s5ClarTokOK := s5ClarPolled.Token()
 	s5ClarifyOK := s5ClarWasPend && s5ClarHasQ && s5ClarQ.Question() == "Is the fare refundable?" &&
-		s5ClarAnsErr == nil && s5ClarTokOK && s5ClarTok != "" 
+		s5ClarAnsErr == nil && s5ClarTokOK && s5ClarTok != ""
 
 	// S5 Missions under supervision (Go PS <-> Rust SS1)
 	s5MissProp, err := s5Alpha.BeginMission(ctx, clientagent.MissionRequest{
@@ -1768,18 +1782,21 @@ func runSSuite(
 	must(err, "VerifyAuthToken s5FedAT1")
 	s5FourPartyAllowOK := s5FedClaims1.Issuer == s4ASIssuer
 
-	// S5 Four-Party narrowing allow refused (403)
+	// The mixed-language supervisor narrows the Go Access Server grant.
 	s5FedRT2, err := s5FedAg.Authorize(ctx, clientagent.AuthorizeRequest{
 		Resource: s4FedResIssuer, PersonToken: s5FedPT, Scopes: []string{"records.read", "records.write"},
 	})
 	must(err, "s5FedAg.Authorize 2")
 	s5Ctl(in.S5RustSS1Issuer, map[string]any{"action": "set_narrow", "narrow": true, "scope": "records.read"})
-	_, s5FedNarrowErr := s5FedAg.Exchange(ctx, clientagent.ExchangeRequest{
+	s5FedNarrowToken, s5FedNarrowErr := s5FedAg.Exchange(ctx, clientagent.ExchangeRequest{
 		PersonServer: s5FedPSIssuer, ResourceToken: s5FedRT2, PresentedToken: s5FedPT,
 	})
 	s5Ctl(in.S5RustSS1Issuer, map[string]any{"action": "set_narrow", "narrow": false})
-	var s5FedNarrowProb *aauth.ProblemError
-	s5FourPartyNarrowRefusedOK := errors.As(s5FedNarrowErr, &s5FedNarrowProb) && s5FedNarrowProb.Status == 403
+	s5FourPartyNarrowedOK := false
+	if s5FedNarrowErr == nil {
+		claims, err := aauth.VerifyAuthToken(ctx, s5FedNarrowToken, sResolver, clock)
+		s5FourPartyNarrowedOK = err == nil && claims.Issuer == s4ASIssuer && claims.Scope == "records.read"
+	}
 
 	s5HostNeverCalledOK := s5HostPolicyCalls.Load() == 0
 
@@ -1808,34 +1825,34 @@ func runSSuite(
 			"told_after_wake":         s3ToldAfterWake,
 		},
 		"s4": map[string]any{
-			"narrow_allow_ok":                  s4NarrowAllowOK,
-			"deny_ok":                          s4DenyOK,
-			"defer_ok":                         s4DeferOK,
-			"clarify_ok":                       s4ClarifyOK,
-			"missions_ok":                      s4MissionsOK,
-			"routing_replay_ok":                s4RoutingReplayOK,
-			"unknown_recovery_ok":              s4UnknownRecoveryOK,
-			"four_party_allow_ok":              s4FourPartyAllowOK,
-			"four_party_narrow_refused_ok":     s4FourPartyNarrowRefusedOK,
-			"four_party_ask_as_defer_bound_ok": s4FourPartyAskASDeferBoundaryOK,
-			"host_never_called_ok":             s4HostNeverCalledOK,
+			"narrow_allow_ok":                 s4NarrowAllowOK,
+			"deny_ok":                         s4DenyOK,
+			"defer_ok":                        s4DeferOK,
+			"clarify_ok":                      s4ClarifyOK,
+			"missions_ok":                     s4MissionsOK,
+			"routing_replay_ok":               s4RoutingReplayOK,
+			"unknown_recovery_ok":             s4UnknownRecoveryOK,
+			"four_party_allow_ok":             s4FourPartyAllowOK,
+			"four_party_narrowed_ok":          s4FourPartyNarrowedOK,
+			"four_party_ask_then_as_defer_ok": s4FourPartyAskThenASDeferOK,
+			"host_never_called_ok":            s4HostNeverCalledOK,
 		},
 		"s5": map[string]any{
-			"use_case_1_ok":                s5UseCase1OK,
-			"use_case_2_ok":                s5UseCase2OK,
-			"use_case_3_ok":                s5UseCase3OK,
-			"use_case_4_go_ok":             s5UseCase4GoOK,
-			"narrow_allow_ok":              s5NarrowOK,
-			"deny_ok":                      s5DenyOK,
-			"defer_ok":                     s5DeferOK,
-			"clarify_ok":                   s5ClarifyOK,
-			"missions_ok":                  s5MissionsOK,
-			"routing_replay_ok":            s5RoutingReplayOK,
-			"unknown_recovery_ok":          s5UnknownRecoveryOK,
-			"four_party_allow_ok":          s5FourPartyAllowOK,
-			"four_party_narrow_refused_ok": s5FourPartyNarrowRefusedOK,
-			"host_never_called_ok":         s5HostNeverCalledOK,
-			"exported_exchange":            s5ExportedEx,
+			"use_case_1_ok":          s5UseCase1OK,
+			"use_case_2_ok":          s5UseCase2OK,
+			"use_case_3_ok":          s5UseCase3OK,
+			"use_case_4_go_ok":       s5UseCase4GoOK,
+			"narrow_allow_ok":        s5NarrowOK,
+			"deny_ok":                s5DenyOK,
+			"defer_ok":               s5DeferOK,
+			"clarify_ok":             s5ClarifyOK,
+			"missions_ok":            s5MissionsOK,
+			"routing_replay_ok":      s5RoutingReplayOK,
+			"unknown_recovery_ok":    s5UnknownRecoveryOK,
+			"four_party_allow_ok":    s5FourPartyAllowOK,
+			"four_party_narrowed_ok": s5FourPartyNarrowedOK,
+			"host_never_called_ok":   s5HostNeverCalledOK,
+			"exported_exchange":      s5ExportedEx,
 		},
 		"s6_go_ss": map[string]any{
 			"ss1_issuer":   s6GoSS1Issuer,

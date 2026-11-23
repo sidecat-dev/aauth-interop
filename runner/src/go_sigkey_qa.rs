@@ -921,7 +921,7 @@ pub fn run_go_sigkey_qa_cases(
         );
     }
 
-    // Also send ES256 and PS256 to Go's /hwk-ed25519-only endpoint -> 401 unsupported_algorithm + Accept-Signature-Alg: Ed25519
+    // Send ES256 to Go's /hwk-ed25519-only endpoint -> 401 unsupported_algorithm + Accept-Signature-Alg: Ed25519
     let m1_unaccepted_es256 = sign_custom_sigkey_request(
         "https://m-go-sigkey.example/hwk-ed25519-only",
         &es256_hdr,
@@ -952,8 +952,9 @@ pub fn run_go_sigkey_qa_cases(
         && m1_unaccepted_ok
         && m1_go.get("alg_list_ok").and_then(Value::as_bool) == Some(true)
         && m1_go.get("per_alg_ok").and_then(Value::as_bool) == Some(true)
+        && m1_go.get("go_to_rust_ok").and_then(Value::as_bool) == Some(true)
         && m1_go.get("unknown_params_accepted").and_then(Value::as_bool) == Some(true)
-        && m1_go.get("default_ed25519_neg_ok").and_then(Value::as_bool) == Some(true)
+        && m1_go.get("default_negotiation_ok").and_then(Value::as_bool) == Some(true)
         && m1_go.get("neg_guards_ok").and_then(Value::as_bool) == Some(true);
 
     qa_cases.push(QaCaseReceipt {
@@ -965,7 +966,7 @@ pub fn run_go_sigkey_qa_cases(
         summary: format!(
             "All 5 hwk algorithms (Ed25519, ES256, ES384, RS256, PS256) sign and verify bidirectionally over HTTPS between Rust and Go (rust_to_go={}, go_to_rust={}); unknown hwk parameters ignored ({}); unaccepted algorithm returns 401 unsupported_algorithm + Accept-Signature-Alg: Ed25519 ({})",
             m1_rust_to_go_ok,
-            m1_go.get("per_alg_ok").and_then(Value::as_bool) == Some(true),
+            m1_go.get("go_to_rust_ok").and_then(Value::as_bool) == Some(true),
             m1_rust_unk_ok && m1_go.get("unknown_params_accepted").and_then(Value::as_bool) == Some(true),
             m1_unaccepted_ok
         ),

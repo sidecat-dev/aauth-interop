@@ -1368,10 +1368,16 @@ pub(crate) fn run_supervision_qa(
     let r_4p_delivered = s2_fed_poll(&fed_mail, &sup_loc(&r_4p_write))?;
     let r_4p_gone = s2_fed_poll(&fed_mail, &sup_loc(&r_4p_write))?;
 
-    // Narrowing allow on 4-party is refused (403 access_denied)
+    // Four-party review delivers only the approved scope.
     *s1_org.narrow_scope.lock().unwrap() = Some(("calendar.read".into(), None));
     let r_4p_narrow = s2_fed_auth_tok(&fed_mail, "calendar.read calendar.write")?;
     *s1_org.narrow_scope.lock().unwrap() = None;
+    let narrowed_scope_ok = member(&r_4p_narrow, "auth_token").is_some_and(|token| {
+        AuthToken::parse(&token)
+            .and_then(|token| token.verify(&trust, clock))
+            .is_ok_and(|token| token.claims().iss == S1_AS
+                && token.claims().scope.as_deref() == Some("calendar.read"))
+    });
     let s2_4party_ok = r_4p_read.status().as_u16() == 200
         && tok_4p_read.unverified_claims().iss == S1_AS
         && r_4p_write.status().as_u16() == 202
@@ -1381,8 +1387,8 @@ pub(crate) fn run_supervision_qa(
         && r_4p_delivered.status().as_u16() == 200
         && sup_body(&r_4p_delivered)["auth_token"].is_string()
         && r_4p_gone.status().as_u16() == 410
-        && r_4p_narrow.status().as_u16() == 403
-        && sup_body(&r_4p_narrow)["error"] == "access_denied";
+        && r_4p_narrow.status().as_u16() == 200
+        && narrowed_scope_ok;
 
     // 4. Recovery:
     // (a) Routing change (mail -> S1_HOME_SS) replays agent.bound, person_token.issued, approved before /decision
@@ -1640,17 +1646,17 @@ pub(crate) fn run_supervision_qa(
         && s4["routing_replay_ok"].as_bool() == Some(true)
         && s4["unknown_recovery_ok"].as_bool() == Some(true)
         && s4["four_party_allow_ok"].as_bool() == Some(true)
-        && s4["four_party_narrow_refused_ok"].as_bool() == Some(true)
-        && s4["four_party_ask_as_defer_bound_ok"].as_bool() == Some(true)
+        && s4["four_party_narrowed_ok"].as_bool() == Some(true)
+        && s4["four_party_ask_then_as_defer_ok"].as_bool() == Some(true)
         && s4["host_never_called_ok"].as_bool() == Some(true);
     cases.push(QaCaseReceipt {
         id: "QA-S4".into(),
         category: "S. Supervision (Rust, Go & Cross-Language)".into(),
-        title: "Go Supervision: Answer Types, Missions, Four-Party & Recovery Over Real HTTPS (allow/narrow/deny/ask/SS-202/clarification with updated_request, missions, 4-party allow/narrow-refused/DeferredCompositionError, routing replay & 404 unknown_sub/unknown_mission recovery)".into(),
+        title: "Go Supervision: Answer Types, Missions, Four-Party & Recovery Over Real HTTPS (allow/narrow/deny/ask/SS-202/clarification with updated_request, missions, 4-party allow/narrowed/retained AS wait, routing replay & 404 unknown_sub/unknown_mission recovery)".into(),
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: s4_pass,
         summary: format!(
-            "Go Supervision answer types, missions, 4-party & recovery verified over real HTTPS: narrow={}, deny={}, defer={}, clarify={}, missions={}, routing_replay={}, unknown_recovery={}, 4party_allow={}, 4party_narrow_refused={}, 4party_ask_as_defer_boundary={}, host_never_called={}",
+            "Go Supervision answer types, missions, 4-party & recovery verified over real HTTPS: narrow={}, deny={}, defer={}, clarify={}, missions={}, routing_replay={}, unknown_recovery={}, 4party_allow={}, 4party_narrowed={}, 4party_ask_as_defer_boundary={}, host_never_called={}",
             s4["narrow_allow_ok"],
             s4["deny_ok"],
             s4["defer_ok"],
@@ -1659,14 +1665,14 @@ pub(crate) fn run_supervision_qa(
             s4["routing_replay_ok"],
             s4["unknown_recovery_ok"],
             s4["four_party_allow_ok"],
-            s4["four_party_narrow_refused_ok"],
-            s4["four_party_ask_as_defer_bound_ok"],
+            s4["four_party_narrowed_ok"],
+            s4["four_party_ask_then_as_defer_ok"],
             s4["host_never_called_ok"],
         ),
         evidence: s4.clone(),
     });
     transcript_lines.push(format!(
-        "[QA-S4] PASS={}: narrow={} deny={} defer={} clarify={} missions={} replay={} unknown={} 4p_allow={} 4p_narrow_refused={} 4p_bound={} host_0={}",
+        "[QA-S4] PASS={}: narrow={} deny={} defer={} clarify={} missions={} replay={} unknown={} 4p_allow={} 4p_narrowed={} 4p_bound={} host_0={}",
         s4_pass,
         s4["narrow_allow_ok"],
         s4["deny_ok"],
@@ -1676,8 +1682,8 @@ pub(crate) fn run_supervision_qa(
         s4["routing_replay_ok"],
         s4["unknown_recovery_ok"],
         s4["four_party_allow_ok"],
-        s4["four_party_narrow_refused_ok"],
-        s4["four_party_ask_as_defer_bound_ok"],
+        s4["four_party_narrowed_ok"],
+        s4["four_party_ask_then_as_defer_ok"],
         s4["host_never_called_ok"],
     ));
 
@@ -1757,7 +1763,7 @@ pub(crate) fn run_supervision_qa(
         && s5["routing_replay_ok"].as_bool() == Some(true)
         && s5["unknown_recovery_ok"].as_bool() == Some(true)
         && s5["four_party_allow_ok"].as_bool() == Some(true)
-        && s5["four_party_narrow_refused_ok"].as_bool() == Some(true)
+        && s5["four_party_narrowed_ok"].as_bool() == Some(true)
         && s5["host_never_called_ok"].as_bool() == Some(true);
     let mut s5_ev = s5.clone();
     s5_ev["exported_exchange"] = json!("<verified_in_go_and_rust>");
@@ -1769,7 +1775,7 @@ pub(crate) fn run_supervision_qa(
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: s5_pass,
         summary: format!(
-            "Cross-language Go PS <-> Rust SS verified over real HTTPS: uc1={}, uc2={}, uc3={}, cross_verify={} (go={} rust_signer={}), narrow={}, deny={}, defer={}, clarify={}, missions={}, replay={}, unknown_recovery={}, 4p_allow={}, 4p_narrow_refused={}, host_0={}",
+            "Cross-language Go PS <-> Rust SS verified over real HTTPS: uc1={}, uc2={}, uc3={}, cross_verify={} (go={} rust_signer={}), narrow={}, deny={}, defer={}, clarify={}, missions={}, replay={}, unknown_recovery={}, 4p_allow={}, 4p_narrowed={}, host_0={}",
             s5["use_case_1_ok"],
             s5["use_case_2_ok"],
             s5["use_case_3_ok"],
@@ -1784,7 +1790,7 @@ pub(crate) fn run_supervision_qa(
             s5["routing_replay_ok"],
             s5["unknown_recovery_ok"],
             s5["four_party_allow_ok"],
-            s5["four_party_narrow_refused_ok"],
+            s5["four_party_narrowed_ok"],
             s5["host_never_called_ok"],
         ),
         evidence: s5_ev,
@@ -1804,7 +1810,7 @@ pub(crate) fn run_supervision_qa(
         s5["routing_replay_ok"],
         s5["unknown_recovery_ok"],
         s5["four_party_allow_ok"],
-        s5["four_party_narrow_refused_ok"],
+        s5["four_party_narrowed_ok"],
     ));
 
     // =========================================================================
@@ -2451,6 +2457,12 @@ pub(crate) fn run_supervision_qa(
         "calendar.read calendar.write",
         "narrow-calendar.read",
     )?;
+    let narrowed_scope_ok = member(&r6_4p_narrow, "auth_token").is_some_and(|token| {
+        AuthToken::parse(&token)
+            .and_then(|token| token.verify(&trust, clock))
+            .is_ok_and(|token| token.claims().iss == S1_AS
+                && token.claims().scope.as_deref() == Some("calendar.read"))
+    });
     let s6_4party_ok = r6_4p_read.status().as_u16() == 200
         && tok6_4p_read.unverified_claims().iss == S1_AS
         && r6_4p_write.status().as_u16() == 202
@@ -2459,8 +2471,8 @@ pub(crate) fn run_supervision_qa(
         && r6_4p_adv.status().as_u16() == 200
         && r6_4p_delivered.status().as_u16() == 200
         && sup_body(&r6_4p_delivered)["auth_token"].is_string()
-        && r6_4p_narrow.status().as_u16() == 403
-        && sup_body(&r6_4p_narrow)["error"] == "access_denied";
+        && r6_4p_narrow.status().as_u16() == 200
+        && narrowed_scope_ok;
 
     let s6_pass = s6_uc1_ok
         && s6_uc2_ok
@@ -2477,7 +2489,7 @@ pub(crate) fn run_supervision_qa(
     cases.push(QaCaseReceipt {
         id: "QA-S6".into(),
         category: "S. Supervision (Rust, Go & Cross-Language)".into(),
-        title: "Cross-Language Supervision Direction 2 (Rust Person Server <-> Go Supervision Server) Over Real HTTPS (all 4 use cases, all answer types + updated_request clarification relay, missions, 4-party allow/ask+AS-202/narrow-refused, recovery, and cross-language offline verification in both Rust and Go)".into(),
+        title: "Cross-Language Supervision Direction 2 (Rust Person Server <-> Go Supervision Server) Over Real HTTPS (all 4 use cases, all answer types + updated_request clarification relay, missions, 4-party allow/ask+AS-202/narrowed, recovery, and cross-language offline verification in both Rust and Go)".into(),
         classification: "VERIFIED_WORKING".into(),
         passed_expectation: s6_pass,
         summary: format!(

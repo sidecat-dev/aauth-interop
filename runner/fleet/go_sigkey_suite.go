@@ -301,10 +301,11 @@ func runMSuite(
 		})
 	})
 
-	// 2. /hwk-ed25519-only uses default AcceptedAlgorithms (Ed25519)
+	// 2. /hwk-ed25519-only explicitly accepts only Ed25519
 	mGoMux.HandleFunc("POST /hwk-ed25519-only", func(w http.ResponseWriter, r *http.Request) {
 		prep, pErr := signaturekey.PrepareRequest(r, clock, signaturekey.VerifyOptions{
-			AcceptedSchemes: []signaturekey.Scheme{signaturekey.SchemeHWK},
+			AcceptedSchemes:    []signaturekey.Scheme{signaturekey.SchemeHWK},
+			AcceptedAlgorithms: []string{jose.Ed25519Algorithm},
 		})
 		if pErr != nil {
 			writeMSigError(w, pErr)
@@ -490,13 +491,13 @@ func runMSuite(
 			compact, retained := assertion.Compact()
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"ok":           true,
-				"scheme_used":  string(proof.Scheme()),
-				"orig_scheme":  string(assertion.Scheme()),
-				"jti":          assertion.JTI(),
-				"issuer":       assertion.Issuer(),
-				"retained":     retained,
-				"compact_len":  len(compact),
+				"ok":          true,
+				"scheme_used": string(proof.Scheme()),
+				"orig_scheme": string(assertion.Scheme()),
+				"jti":         assertion.JTI(),
+				"issuer":      assertion.Issuer(),
+				"retained":    retained,
+				"compact_len": len(compact),
 			})
 			return
 		}
@@ -604,14 +605,14 @@ func runMSuite(
 
 	// Register m-go-sigkey.example with m-rust-sigkey.example so Rust can fetch Go JWKS & X509 chains over TLS
 	peerBody, _ := json.Marshal(map[string]any{
-		"addr":               mGoSrv.Listener.Addr().String(),
-		"cert_hex":           hex.EncodeToString(mGoDER),
-		"x509_root_der_b64":  base64.StdEncoding.EncodeToString(goX509Root.cert.Raw),
-		"x509_mid_crl_b64":   base64.StdEncoding.EncodeToString(goX509MidCRL.Raw),
-		"x509_root_crl_b64":  base64.StdEncoding.EncodeToString(goX509RootCRL.Raw),
-		"x509_rev_crl_b64":   base64.StdEncoding.EncodeToString(goX509RevokedCRL.Raw),
-		"jwt_issuer_jwk":     goJWTIssuerKey.PublicJWK(),
-		"jwt_holder_jwk":     goJWTHolderKey.PublicJWK(),
+		"addr":              mGoSrv.Listener.Addr().String(),
+		"cert_hex":          hex.EncodeToString(mGoDER),
+		"x509_root_der_b64": base64.StdEncoding.EncodeToString(goX509Root.cert.Raw),
+		"x509_mid_crl_b64":  base64.StdEncoding.EncodeToString(goX509MidCRL.Raw),
+		"x509_root_crl_b64": base64.StdEncoding.EncodeToString(goX509RootCRL.Raw),
+		"x509_rev_crl_b64":  base64.StdEncoding.EncodeToString(goX509RevokedCRL.Raw),
+		"jwt_issuer_jwk":    goJWTIssuerKey.PublicJWK(),
+		"jwt_holder_jwk":    goJWTHolderKey.PublicJWK(),
 	})
 	peerResp, err := httpClient.Post("https://m-rust-sigkey.example/__set-go-peer", "application/json", bytes.NewReader(peerBody))
 	must(err, "post m-rust-sigkey.example/__set-go-peer")
@@ -625,6 +626,7 @@ func runMSuite(
 	m1AlgListOK := slices.Equal(algList, wantAlgs)
 
 	m1PerAlgOK := true
+	m1GoToRustOK := true
 	m1GoToRustHWK := make(map[string]any)
 	for _, alg := range algList {
 		k, _ := newMAlgSigningKey(alg+"-id", alg)
@@ -634,9 +636,9 @@ func runMSuite(
 		vErr := pub.VerifySignature([]byte("m1-message"), sigBytes)
 		badVErr := pub.VerifySignature([]byte("other-message"), sigBytes)
 		_, pubKeyErr := pub.PublicKey()
-		edOnlyOK := (pubKeyErr == nil) == (alg == jose.Ed25519Algorithm)
+		tokenKeyOK := (pubKeyErr == nil) == (alg == jose.Ed25519Algorithm || alg == jose.ES256Algorithm)
 		jktURI, jktErr := pub.ThumbprintURI()
-		if sErr != nil || szErr != nil || sz != len(sigBytes) || vErr != nil || badVErr == nil || !edOnlyOK || jktErr != nil {
+		if sErr != nil || szErr != nil || sz != len(sigBytes) || vErr != nil || badVErr == nil || !tokenKeyOK || jktErr != nil {
 			m1PerAlgOK = false
 		}
 
@@ -654,7 +656,7 @@ func runMSuite(
 		_ = hResp.Body.Close()
 		matchOK := hResp.StatusCode == http.StatusOK && rOut.OK && rOut.Alg == alg && rOut.JKTURI == jktURI
 		if !matchOK {
-			m1PerAlgOK = false
+			m1GoToRustOK = false
 		}
 		m1GoToRustHWK[alg] = map[string]any{
 			"status":        hResp.StatusCode,
@@ -681,14 +683,23 @@ func runMSuite(
 	})
 	m1UnknownParamsAcceptedOnPrepare := unkPrepErr == nil && unkPrepTmp.Credential().Scheme() == signaturekey.SchemeHWK
 
-	// M1 Negative & AcceptedAlgorithms checks in Go
-	_, defaultUnacceptedErr := signaturekey.PrepareRequest(unkReq, clock, signaturekey.VerifyOptions{
+	// The default token profile accepts ES256 and advertises both algorithms
+	// when asked to verify an ES384 request.
+	_, defaultES256Err := signaturekey.PrepareRequest(unkReq, clock, signaturekey.VerifyOptions{
+		AcceptedSchemes: []signaturekey.Scheme{signaturekey.SchemeHWK},
+	})
+	es384Key, _ := newMAlgSigningKey("m1-default-es384", jose.ES384Algorithm)
+	es384Req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://m-go-sigkey.example/items", nil)
+	must(err, "new ES384 request")
+	must(signaturekey.SignHWKRequest(es384Req, es384Key, clock), "sign ES384 request")
+	_, defaultUnacceptedErr := signaturekey.PrepareRequest(es384Req, clock, signaturekey.VerifyOptions{
 		AcceptedSchemes: []signaturekey.Scheme{signaturekey.SchemeHWK},
 	})
 	var defaultUnacceptedSigErr *signaturekey.Error
-	m1DefaultEd25519NegotiationOK := errors.As(defaultUnacceptedErr, &defaultUnacceptedSigErr) &&
+	m1DefaultNegotiationOK := defaultES256Err == nil &&
+		errors.As(defaultUnacceptedErr, &defaultUnacceptedSigErr) &&
 		defaultUnacceptedSigErr.Code == signaturekey.ErrorUnsupportedAlgorithm &&
-		reflect.DeepEqual(defaultUnacceptedSigErr.AcceptedAlgorithms, []string{jose.Ed25519Algorithm})
+		reflect.DeepEqual(defaultUnacceptedSigErr.AcceptedAlgorithms, []string{jose.Ed25519Algorithm, jose.ES256Algorithm})
 
 	// hwk refuses kid and private parameters before alg
 	kidHWKReq := unkReq.Clone(ctx)
@@ -1285,7 +1296,8 @@ func runMSuite(
 			"alg_list_ok":             m1AlgListOK,
 			"per_alg_ok":              m1PerAlgOK,
 			"unknown_params_accepted": m1UnknownParamsAcceptedOnPrepare,
-			"default_ed25519_neg_ok":  m1DefaultEd25519NegotiationOK,
+			"default_negotiation_ok":  m1DefaultNegotiationOK,
+			"go_to_rust_ok":           m1GoToRustOK,
 			"neg_guards_ok":           m1NegGuardsOK,
 			"go_to_rust_hwk":          m1GoToRustHWK,
 		},
@@ -1302,11 +1314,11 @@ func runMSuite(
 			"neg_guards_ok":         m3NegGuardsOK,
 		},
 		"m4": map[string]any{
-			"go_accepted_rsa_ca_chain":     m4GoAccepted,
-			"rust_accepted_rsa_ca_chain":   m4RustAccepted,
-			"rust_status":                  m4RustResp.StatusCode,
-			"rust_alg":                     m4RustOut.Alg,
-			"rust_signature_error":         m4RustSigErr,
+			"go_accepted_rsa_ca_chain":   m4GoAccepted,
+			"rust_accepted_rsa_ca_chain": m4RustAccepted,
+			"rust_status":                m4RustResp.StatusCode,
+			"rust_alg":                   m4RustOut.Alg,
+			"rust_signature_error":       m4RustSigErr,
 		},
 		"m5": map[string]any{
 			"all_ok":                m5AllOK,

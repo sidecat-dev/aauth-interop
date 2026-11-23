@@ -3184,8 +3184,11 @@ pub fn run_alpha16_qa_cases(
         && q5_unmetered_poll.headers().get("aauth-budget").is_none()
         && q5_charged_after_unmetered == Q5_RELEASE_COST;
 
-    // 9. Verify a Rust Federated PS (`with_federation` + `with_budgets` + `with_r3`) refuses a proposal `resource_token`
-    //    carrying a budget offer with `400 invalid_resource_token` (`crates/aauth-rust-person-server/src/server/r3.rs:535`)
+    // 9. Confirm the Rust Person Server forwards a budgeted proposal to an AS.
+    // The fixture deliberately supplies no route. Verify its one outbound request
+    // and the safe failure when there is no AS response.
+    let q5_fed = QMultiAsHttpsFederation::default();
+    let q5_access_server = "https://fed-as.example";
     let q5_fed_ps_seq = Arc::new(AtomicUsize::new(0));
     let q5_fed_ps = PersonServer::new(
         PsConfig::new(Q5_RUST_DIRECT_PS, "q5-rust-ps-1", SigningKey::from_seed([0x79; 32])),
@@ -3200,7 +3203,7 @@ pub fn run_alpha16_qa_cases(
             )
         }) as BoxedTokenIds,
     )?
-    .with_federation(DummyFederation)
+    .with_federation(q5_fed.clone())
     .with_budgets(IssuerPolicy::capped(
         500,
         vec![UnitDeclaration::new("USD", 2, "US dollars")?],
@@ -3217,6 +3220,7 @@ pub fn run_alpha16_qa_cases(
         }),
     })?;
     let mut q5_fed_prop_claims = q5_ver_prop_rt.claims().clone();
+    q5_fed_prop_claims.aud = q5_access_server.into();
     q5_fed_prop_claims.presented_jti = PersonToken::parse(&q5_pt)?.unverified_claims().jti.clone();
     q5_fed_prop_claims.jti = "q5-fed-prop-rt-1".into();
     let (q5_fed_prop_rt, _) = mint_budget_proposal_resource_token(
@@ -3237,8 +3241,14 @@ pub fn run_alpha16_qa_cases(
         }))?,
         clock,
     )?);
-    let q5_rust_fed_ps_refusal_ok = q5_rust_fed_ps_refusal.status().as_u16() == 400
-        && member(&q5_rust_fed_ps_refusal, "error").as_deref() == Some("invalid_resource_token");
+    let q5_sent = q5_fed.sent_bodies.lock().unwrap();
+    let q5_rust_fed_ps_relay_ok = q5_sent.as_slice().first().is_some_and(|(uri, body)| {
+        q5_sent.len() == 1
+            && uri == &format!("{q5_access_server}/token")
+            && body["budget"] == json!({"amount": Q5_RELEASE_COST, "unit": "USD", "decimals": 2})
+            && body["presented_token"] == json!(q5_pt)
+    }) && q5_rust_fed_ps_refusal.status().as_u16() == 502
+        && member(&q5_rust_fed_ps_refusal, "error").as_deref() == Some("as_unreachable");
 
     // 10. Cross-language wire check against `aauth-go` main (`445af350`):
     //     (a) Go Direct PS refuses a proposal `resource_token` carrying `budget` with `400 invalid_resource_token`
@@ -3313,7 +3323,7 @@ pub fn run_alpha16_qa_cases(
         && q5_ps_narrowed_ok
         && q5_release_and_replay_ok
         && q5_unmetered_beside_ok
-        && q5_rust_fed_ps_refusal_ok
+        && q5_rust_fed_ps_relay_ok
         && q5_go_direct_ps_refusal_ok
         && q5_go_fed_ps_as_refusal_ok
         && q5_go_res_refusal_ok;
@@ -3322,14 +3332,14 @@ pub fn run_alpha16_qa_cases(
         "classification": "VERIFIED_WORKING",
         "pass": q5_pass,
         "summary": format!(
-            "Metered release of held R3 result (`with_release_metering`, `R3Release::cost`) & cross-language wire check verified: config guards={}, proposal offers cost as budget={}, unfunded 403={}, short budget 403+AAuth-Budget (`required=250`) & stays held={}, 3-party PS narrows budget & release charges once (`200 OK` + `AAuth-Budget`) & replay not charged again={}, unmetered release beside it={}, Rust Fed PS refuses proposal+budget with 400={}, Go Direct PS/Fed PS/Resource refuse per-call budget wire ({}/{}/{})",
+            "Metered release of held R3 result (`with_release_metering`, `R3Release::cost`) & cross-language wire check verified: config guards={}, proposal offers cost as budget={}, unfunded 403={}, short budget 403+AAuth-Budget (`required=250`) & stays held={}, 3-party PS narrows budget & release charges once (`200 OK` + `AAuth-Budget`) & replay not charged again={}, unmetered release beside it={}, Rust Fed PS forwards the release ceiling and refuses unavailable AS={}, Go Direct PS/Fed PS/Resource refuse per-call budget wire ({}/{}/{})",
             q5_config_guards_ok,
             q5_proposal_offer_ok,
             q5_unfunded_refused_ok,
             q5_short_budget_403_ok,
             q5_ps_narrowed_ok && q5_release_and_replay_ok,
             q5_unmetered_beside_ok,
-            q5_rust_fed_ps_refusal_ok,
+            q5_rust_fed_ps_relay_ok,
             q5_go_direct_ps_refusal_ok,
             q5_go_fed_ps_as_refusal_ok,
             q5_go_res_refusal_ok,
@@ -3346,7 +3356,7 @@ pub fn run_alpha16_qa_cases(
             "charged_after_release": q5_charged_after_release,
             "charged_after_replay": q5_charged_after_replay,
             "unmetered_beside_ok": q5_unmetered_beside_ok,
-            "rust_fed_ps_proposal_budget_refusal_ok": q5_rust_fed_ps_refusal_ok,
+            "rust_fed_ps_proposal_budget_relay_ok": q5_rust_fed_ps_relay_ok,
             "go_direct_ps_proposal_budget_refusal_ok": q5_go_direct_ps_refusal_ok,
             "go_fed_ps_as_proposal_budget_refusal_ok": q5_go_fed_ps_as_refusal_ok,
             "go_held_res_per_call_budget_refusal_ok": q5_go_res_refusal_ok,
